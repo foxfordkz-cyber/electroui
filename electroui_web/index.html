@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="kk" data-theme="dark" data-accent="blue">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ЭлектроҮй — Үйдегі электр құралдары</title>
+  <meta name="description" content="«Үйдегі электр құралдары» ООП тапсырмасы: класс иерархиясы, розеткаға қосу, қуатты есептеу, сұрыптау және іздеу.">
+  <meta name="theme-color" content="#070b18">
+  <link rel="icon" href="static/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="static/app.css">
+  <script>
+    /* Тақырыпты бет жүктелместен бұрын орнату (жыпылықтамау үшін). */
+    (function () {
+      var theme = 'dark', accent = 'blue';
+      try { theme = localStorage.getItem('eu.theme') || 'dark'; accent = localStorage.getItem('eu.accent') || 'blue'; } catch (e) {}
+      var dark = theme === 'dark' || (theme === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-accent', accent);
+    })();
+  </script>
+</head>
+<body>
+  <!-- Жүктелу экраны -->
+  <div id="boot" class="boot" aria-hidden="true">
+    <div class="boot-bolt">
+      <svg viewBox="0 0 24 24"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></svg>
+    </div>
+    <p>ЭлектроҮй жүктелуде…</p>
+  </div>
+
+  <!-- ===================== КІРУ / ТІРКЕЛУ ===================== -->
+  <section id="auth" class="auth" hidden>
+    <div id="hero3d" class="hero3d" aria-hidden="true"></div>
+    <div class="auth-veil" aria-hidden="true"></div>
+
+    <div class="auth-top">
+      <div class="brand">
+        <span class="brand-mark"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></svg></span>
+        <span class="brand-name">Электро<b>Үй</b></span>
+      </div>
+      <button class="icon-btn glass-btn" id="auth-theme" type="button" aria-label="Тақырыпты ауыстыру" title="Жарық / қараңғы тақырып"></button>
+    </div>
+
+    <div class="auth-grid">
+      <div class="auth-intro">
+        <p class="eyebrow"><span class="pulse-dot"></span> ООП тапсырмасы · веб-нұсқа</p>
+        <h1 class="hero-title">Үйдегі <span class="grad-text">электр құралдары</span></h1>
+        <p class="lead">Пәтердегі құралдарды розеткаға қосыңыз, тұтынылатын қуатты есептеңіз, қуаты бойынша сұрыптаңыз және параметрлер аралығымен іздеңіз — бәрі 3D көрініспен.</p>
+        <ol class="task-steps">
+          <li><b>1</b><span>Электр құралдарының <em>класс иерархиясын</em> анықтау</span></li>
+          <li><b>2</b><span>Кейбір құралдарды <em>розеткаға қосу</em></span></li>
+          <li><b>3</b><span>Тұтынылатын <em>қуатты есептеу</em></span></li>
+          <li><b>4</b><span>Пәтердегі құралдарды <em>қуаты бойынша сұрыптау</em></span></li>
+          <li><b>5</b><span>Берілген <em>параметрлер аралығына</em> сәйкес құралды табу</span></li>
+        </ol>
+        <div class="tech-chips">
+          <span>SQLite</span><span>PBKDF2-SHA256</span><span>ADMIN / CLIENT</span><span>three.js 3D</span><span>Хабарламалар</span><span>Тақырыптар</span>
+        </div>
+      </div>
+
+      <div class="auth-card glass">
+        <div class="seg seg-wide" role="tablist">
+          <button type="button" role="tab" data-auth-tab="login" class="active">Кіру</button>
+          <button type="button" role="tab" data-auth-tab="register">Тіркелу</button>
+        </div>
+
+        <form id="login-form" class="form" autocomplete="on" novalidate>
+          <h2>Қайта оралуыңызбен!</h2>
+          <p class="muted small">Аккаунтыңызға кіріп, пәтеріңізді басқарыңыз.</p>
+          <label class="field">
+            <span>Логин</span>
+            <input name="login" autocomplete="username" required maxlength="20" placeholder="мысалы: aru">
+          </label>
+          <label class="field">
+            <span>Құпиясөз</span>
+            <span class="pw-wrap">
+              <input name="password" type="password" autocomplete="current-password" required placeholder="••••••••">
+              <button type="button" class="pw-eye" aria-label="Құпиясөзді көрсету"></button>
+            </span>
+          </label>
+          <div class="form-error" id="login-error" role="alert" hidden></div>
+          <button class="btn btn-primary btn-block" type="submit"><span>Кіру</span></button>
+          <div class="demo-accounts">
+            <span class="muted small">Тест аккаунттары (басып толтыру):</span>
+            <div class="demo-row">
+              <button type="button" class="demo-chip" data-login="admin" data-pass="Admin123!"><b>admin</b> · Әкімші</button>
+              <button type="button" class="demo-chip" data-login="aru" data-pass="Aru12345!"><b>aru</b> · Клиент</button>
+            </div>
+          </div>
+        </form>
+
+        <form id="register-form" class="form" autocomplete="on" novalidate hidden>
+          <h2>Жаңа аккаунт</h2>
+          <p class="muted small">Тіркелгеннен кейін сізге 4 бөлмелі бос пәтер беріледі.</p>
+          <label class="field">
+            <span>Аты-жөні</span>
+            <input name="fullName" autocomplete="name" required maxlength="60" placeholder="Мысалы: Дана Ерланқызы">
+            <small class="hint" data-hint="fullName"></small>
+          </label>
+          <div class="field-row">
+            <label class="field">
+              <span>Логин</span>
+              <input name="login" autocomplete="username" required maxlength="20" placeholder="dana_01">
+              <small class="hint" data-hint="login">3–20 таңба: a–z, 0–9, _</small>
+            </label>
+            <label class="field">
+              <span>Email</span>
+              <input name="email" type="email" autocomplete="email" required maxlength="80" placeholder="dana@mail.kz">
+              <small class="hint" data-hint="email"></small>
+            </label>
+          </div>
+          <label class="field">
+            <span>Құпиясөз</span>
+            <span class="pw-wrap">
+              <input name="password" type="password" autocomplete="new-password" required placeholder="кемінде 8 таңба, әріп + цифр">
+              <button type="button" class="pw-eye" aria-label="Құпиясөзді көрсету"></button>
+            </span>
+            <span class="strength" id="reg-strength"><i></i><i></i><i></i><i></i></span>
+            <small class="hint" data-hint="password">Кемінде 8 таңба, бір әріп және бір цифр</small>
+          </label>
+          <label class="field">
+            <span>Құпиясөзді қайталаңыз</span>
+            <input name="confirm" type="password" autocomplete="new-password" required placeholder="••••••••">
+            <small class="hint" data-hint="confirm"></small>
+          </label>
+          <div class="form-error" id="register-error" role="alert" hidden></div>
+          <button class="btn btn-primary btn-block" type="submit"><span>Тіркелу</span></button>
+        </form>
+        <p class="secure-note">
+          <svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3z"/></svg>
+          Құпиясөз PBKDF2-HMAC-SHA256 (120 000 итерация, 16 байт тұз) арқылы хэштеледі
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== НЕГІЗГІ ҚАБЫҚ ===================== -->
+  <div id="shell" class="shell" hidden>
+    <aside id="sidebar" class="sidebar" aria-label="Негізгі мәзір">
+      <div class="sb-head">
+        <a class="brand" href="#/dashboard">
+          <span class="brand-mark"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></svg></span>
+          <span class="brand-name">Электро<b>Үй</b></span>
+        </a>
+        <button class="icon-btn sb-collapse" id="collapse-btn" type="button" aria-label="Мәзірді жию" title="Мәзірді жию / ашу"></button>
+      </div>
+      <nav id="nav" class="nav"></nav>
+      <div class="sb-user" id="sb-user"></div>
+    </aside>
+    <div class="scrim" id="scrim"></div>
+
+    <div class="main">
+      <header class="topbar">
+        <button class="icon-btn" id="menu-btn" type="button" aria-label="Мәзір"></button>
+        <div class="page-head">
+          <h1 id="page-title">Басты бет</h1>
+          <p id="page-sub" class="muted"></p>
+        </div>
+        <div class="top-actions">
+          <a class="power-chip" id="power-chip" href="#/calc" title="Қосулы құралдардың жалпы қуаты"></a>
+          <button class="icon-btn" id="theme-btn" type="button" aria-label="Тақырып" title="Жарық / қараңғы тақырып"></button>
+          <div class="bell-wrap">
+            <button class="icon-btn" id="bell-btn" type="button" aria-label="Хабарламалар" aria-haspopup="true"></button>
+            <div class="dropdown glass" id="bell-menu" hidden></div>
+          </div>
+          <a class="avatar avatar-sm" id="top-avatar" href="#/profile" title="Профиль"></a>
+        </div>
+      </header>
+      <main id="view" class="view" tabindex="-1"></main>
+    </div>
+  </div>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <div id="modal-root"></div>
+
+  <noscript><div class="noscript">ЭлектроҮй жұмыс істеуі үшін браузерде JavaScript қосулы болуы керек.</div></noscript>
+
+  <script src="static/three.min.js"></script>
+  <script src="static/model.js"></script>
+  <script src="static/scene3d.js"></script>
+  <script src="static/app.js"></script>
+</body>
+</html>

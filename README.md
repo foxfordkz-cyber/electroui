@@ -1,0 +1,27 @@
+# ЭлектроҮй
+
+«Үйдегі электр құралдары» тақырыбындағы Java қолданбасы және оның веб-нұсқасы. Екеуінде де құралдарды розеткаға қосуға, пәтердің қуат тұтынуын есептеуге, құралдарды қуаты бойынша сұрыптауға және берілген аралықтан іздеуге болады. Интерфейс қазақ тілінде.
+
+| Не керек? | Қайдан алуға болады? |
+| --- | --- |
+| Телефонға орнату | [Дайын APK файлын жүктеу](https://github.com/foxfordkz-cyber/electroui/releases/download/v1.0/ElectroUi.apk) · Android 8.0 және одан жоғары |
+| Android Studio жобасы | [ElectroUi](ElectroUi/) · [Java коды](ElectroUi/app/src/main/java/com/example/electroui/) |
+| Сайт | [electroui_web](electroui_web/) · [Python сервері](electroui_web/server.py) · [веб-интерфейс коды](electroui_web/static/) |
+| Есепке арналған скриншоттар | [Бөлімдер бойынша көрсеткіш](report-screenshots/) · [Барлығын ZIP түрінде жүктеу](https://github.com/foxfordkz-cyber/electroui/releases/download/v1.0/ElectroUi-Report-Screenshots.zip) |
+
+## Іске қосу
+
+**Android.** Дайын APK файлын телефонға орнатыңыз немесе Android Studio-да `ElectroUi` бумасын ашып, **Run** түймесін басыңыз. Команда жолынан жинау үшін Windows жүйесінде осы бумада `gradlew.bat assembleDebug` командасын орындаңыз. Жоба JDK 17 және Android SDK 36.1 пайдаланады. [Android нұсқаулығы](ElectroUi/README.txt)
+
+**Сайт.** Жобаны компьютерге жүктеп, архивті ашыңыз. Python 3.10 немесе одан жаңасы орнатылған компьютерде `electroui_web/start.bat` файлын іске қосыңыз. macOS пен Linux жүйелерінде `electroui_web` бумасында `python3 server.py` командасын орындаңыз. Браузерде `http://localhost:8090` мекенжайын ашыңыз. Бірінші іске қосылғанда сервер SQLite дерекқорын демодеректермен толтырады. [Сайт нұсқаулығы](electroui_web/README.txt)
+
+## Демоаккаунттар
+
+| Рөл | Логин | Құпиясөз |
+| --- | --- | --- |
+| Клиент | `aru` | `Aru12345!` |
+| Әкімші | `admin` | `Admin123!` |
+
+`aru` пәтеріндегі 13 құралдың төртеуі бастапқыда қосулы. Олардың жиынтық қуаты 2 470 Вт. Клиент пен әкімшіге арналған кіру батырмалары екі нұсқада да бар.
+
+Фото авторлары, лицензиялары және видео дереккөздері [медиа тізімінде](electroui_web/IMAGE_SOURCES.txt) көрсетілген.

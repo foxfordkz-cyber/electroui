@@ -1,0 +1,14 @@
+# Local tools and Android builds
+.idea/
+.gradle/
+build/
+local.properties
+*.iml
+*.jks
+*.keystore
+
+# The web server creates its demo database on first launch.
+__pycache__/
+*.py[cod]
+electroui_web/*.db
+electroui_web/*.db-*

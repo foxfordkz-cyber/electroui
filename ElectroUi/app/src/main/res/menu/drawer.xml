@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/section_task"
+        android:title="Тапсырма">
+        <menu>
+            <item android:id="@+id/nav_home" android:checkable="true" android:icon="@drawable/ic_home" android:title="Басты бет" />
+            <item android:id="@+id/nav_hierarchy" android:checkable="true" android:icon="@drawable/ic_tree" android:title="1. Құралдар иерархиясы" />
+            <item android:id="@+id/nav_apartment" android:checkable="true" android:icon="@drawable/ic_plug" android:title="2. Розеткаға қосу" />
+            <item android:id="@+id/nav_calc" android:checkable="true" android:icon="@drawable/ic_calc" android:title="3. Қуатты есептеу" />
+            <item android:id="@+id/nav_sort" android:checkable="true" android:icon="@drawable/ic_sort" android:title="4. Қуат бойынша сұрыптау" />
+            <item android:id="@+id/nav_search" android:checkable="true" android:icon="@drawable/ic_search" android:title="5. Диапазон бойынша іздеу" />
+        </menu>
+    </item>
+    <item
+        android:id="@+id/section_visual"
+        android:title="Көрнекілік">
+        <menu>
+            <item android:id="@+id/nav_3d" android:checkable="true" android:icon="@drawable/ic_cube" android:title="3D пәтер" />
+            <item android:id="@+id/nav_media" android:checkable="true" android:icon="@drawable/ic_play" android:title="Видео мен суреттер" />
+        </menu>
+    </item>
+    <item
+        android:id="@+id/section_admin"
+        android:title="Әкімші панелі">
+        <menu>
+            <item android:id="@+id/nav_admin_users" android:checkable="true" android:icon="@drawable/ic_group" android:title="Пайдаланушылар" />
+            <item android:id="@+id/nav_admin_catalog" android:checkable="true" android:icon="@drawable/ic_category" android:title="Құралдар каталогы" />
+            <item android:id="@+id/nav_admin_stats" android:checkable="true" android:icon="@drawable/ic_chart" android:title="SQL статистика" />
+            <item android:id="@+id/nav_admin_broadcast" android:icon="@drawable/ic_campaign" android:title="Хабарлама жіберу" />
+        </menu>
+    </item>
+    <item
+        android:id="@+id/section_account"
+        android:title="Аккаунт">
+        <menu>
+            <item android:id="@+id/nav_notifications" android:checkable="true" android:icon="@drawable/ic_bell" android:title="Хабарламалар" />
+            <item android:id="@+id/nav_profile" android:checkable="true" android:icon="@drawable/ic_person" android:title="Профиль" />
+            <item android:id="@+id/nav_settings" android:checkable="true" android:icon="@drawable/ic_palette" android:title="Тақырып және баптаулар" />
+            <item android:id="@+id/nav_logout" android:icon="@drawable/ic_logout" android:title="Шығу" />
+        </menu>
+    </item>
+</menu>

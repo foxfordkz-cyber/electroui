@@ -1,0 +1,172 @@
+{
+ "images": [
+  {
+   "key": "hero",
+   "file": "hero.jpg",
+   "caption": "Заманауи пәтер: ас үй мен қонақ бөлме біріккен интерьер",
+   "title": "File:Modern luxury living room with kitchen interior.jpg",
+   "page": "https://commons.wikimedia.org/wiki/File:Modern_luxury_living_room_with_kitchen_interior.jpg",
+   "license": "CC BY 2.0",
+   "artist": "Shixart1985"
+  },
+  {
+   "key": "panel",
+   "file": "panel.jpg",
+   "caption": "Тұрғын үйдің электр қалқаны: автоматты ажыратқыштар",
+   "title": "File:Inside a residential electrical control panel.jpg",
+   "page": "https://commons.wikimedia.org/wiki/File:Inside_a_residential_electrical_control_panel.jpg",
+   "license": "CC BY 2.0",
+   "artist": "Shixart1985"
+  },
+  {
+   "key": "kettle",
+   "file": "kettle.jpg",
+   "caption": "Электр шәйнек (Kettle) — Bosch",
+   "title": "File:2023 Czajnik elektryczny Bosch (2).jpg",
+   "page": "https://commons.wikimedia.org/wiki/File:2023_Czajnik_elektryczny_Bosch_(2).jpg",
+   "license": "CC BY-SA 4.0",
+   "artist": "Jacek Halicki"
+  },
+  {
+   "key": "fridge",
+   "file": "fridge.jpg",
+   "caption": "Тоңазытқыш (Refrigerator) — Panasonic NR-C320",
+   "title": "File:Panasonic HOME REFRIGERATOR NR-C320WP-N.jpg",
+   "page": "https://commons.wikimedia.org/wiki/File:Panasonic_HOME_REFRIGERATOR_NR-C320WP-N.jpg",
+   "license": "CC BY-SA 4.0",
+   "artist": "Dinkun Chen"
+  },
+  {
+   "key": "microwave",
+   "file": "microwave.jpg",
+   "caption": "Микротолқынды пеш (Microwave) — Panasonic NN-GM333",
+   "title": "File:Panasonic MICROWAVE OVEN NN-GM333W.jpg",
+   "page": "https://commons.wikimedia.org/wiki/File:Panasonic_MICROWAVE_OVEN_NN-GM333W.jpg",
+   "license": "CC BY-SA 4.0",
+   "artist": "Dinkun Chen"
+  },
+  {
+   "key": "washer",
+   "file": "washer.jpg",
+   "caption": "Кір жуғыш машина (WashingMachine) — алдынан жүктелетін",
+   "title": "File:Front loader Washing machine.jpg",
+   "page": "https://commons.wikimedia.org/wiki/File:Front_loader_Washing_machine.jpg",
+   "license": "CC BY-SA 4.0",
+   "artist": "Gb.select"
+  },
+  {
+   "key": "vacuum",
+   "file": "vacuum.jpg",
+   "caption": "Шаңсорғыш (VacuumCleaner) — Hitachi CV-HG5",
+   "title": "File:Hitachi CV-HG5 20130711.jpg",
+   "page": "https://commons.wikimedia.org/wiki/File:Hitachi_CV-HG5_20130711.jpg",
+   "license": "CC BY-SA 4.0",
+   "artist": "ミトン"
+  },
+  {
+   "key": "iron",
+   "file": "iron.jpg",
+   "caption": "Бу үтігі (Iron) — Hitachi CSI-M701",
+   "title": "File:Cordless steam iron CSI-M701A, by HITACHI (2015-06-10) 2.JPG",
+   "page": "https://commons.wikimedia.org/wiki/File:Cordless_steam_iron_CSI-M701A,_by_HITACHI_(2015-06-10)_2.JPG",
+   "license": "CC BY-SA 4.0",
+   "artist": "Lombroso"
+  },
+  {
+   "key": "tv",
+   "file": "tv.jpg",
+   "caption": "Теледидар (Television) — Samsung LA40C550",
+   "title": "File:SAMSUNG VA LCD TV LA40C550J1F.jpg",
+   "page": "https://commons.wikimedia.org/wiki/File:SAMSUNG_VA_LCD_TV_LA40C550J1F.jpg",
+   "license": "CC BY-SA 4.0",
+   "artist": "Dinkun Chen"
+  },
+  {
+   "key": "computer",
+   "file": "computer.jpg",
+   "caption": "RGB жарықтандыруы бар компьютер (Computer)",
+   "title": "File:RGB desktop computer setup with keyboard and monitor.jpg",
+   "page": "https://commons.wikimedia.org/wiki/File:RGB_desktop_computer_setup_with_keyboard_and_monitor.jpg",
+   "license": "CC0",
+   "artist": "SankalpSasnur"
+  },
+  {
+   "key": "aircon",
+   "file": "aircon.jpg",
+   "caption": "Кондиционердің ішкі блогы (AirConditioner) — Panasonic CS-C10",
+   "title": "File:Panasonic AIR CONDITIONER INDOOR UNIT CS-C10KJ2 (2).jpg",
+   "page": "https://commons.wikimedia.org/wiki/File:Panasonic_AIR_CONDITIONER_INDOOR_UNIT_CS-C10KJ2_(2).jpg",
+   "license": "CC BY-SA 4.0",
+   "artist": "Dinkun Chen"
+  },
+  {
+   "key": "heater",
+   "file": "heater.jpg",
+   "caption": "Майлы жылытқыш (Heater) — радиатор секциялары",
+   "title": "File:Oil Heater 5293.jpg",
+   "page": "https://commons.wikimedia.org/wiki/File:Oil_Heater_5293.jpg",
+   "license": "CC BY 3.0",
+   "artist": "Ashley Pomeroy"
+  },
+  {
+   "key": "fan",
+   "file": "fan.jpg",
+   "caption": "Еденге қойылатын желдеткіш (Fan)",
+   "title": "File:Ventilator BW 2026-06-19 16-42-30 standing.jpg",
+   "page": "https://commons.wikimedia.org/wiki/File:Ventilator_BW_2026-06-19_16-42-30_standing.jpg",
+   "license": "CC BY-SA 4.0",
+   "artist": "Berthold Werner"
+  },
+  {
+   "key": "lamp",
+   "file": "lamp.jpg",
+   "caption": "E27 цоколі бар LED шам (Lamp)",
+   "title": "File:LED-E27-Light-Bulb-1134.jpg",
+   "page": "https://commons.wikimedia.org/wiki/File:LED-E27-Light-Bulb-1134.jpg",
+   "license": "CC BY-SA 4.0",
+   "artist": "Loadmaster (David R. Tribble)"
+  }
+ ],
+ "videos": [
+  {
+   "key": "iron_unplug",
+   "file": "iron_unplug.mp4",
+   "poster": "iron.jpg",
+   "caption": "Үтікті розеткадан ажырату: жұмыс біткен соң қыздырғыш құралды міндетті түрде өшіру (Pluggable.unplug())",
+   "title": "Hand unplugging an iron",
+   "page": "https://mixkit.co/free-stock-video/",
+   "license": "Mixkit Free License",
+   "artist": "Mixkit"
+  },
+  {
+   "key": "bulb_on",
+   "file": "bulb_on.mp4",
+   "poster": "lamp.jpg",
+   "caption": "Шамның жануы: жарықтандыру құралы (Lamp) розеткаға қосылғанда",
+   "title": "Light bulb switching on",
+   "page": "https://mixkit.co/free-stock-video/",
+   "license": "Mixkit Free License",
+   "artist": "Mixkit"
+  },
+  {
+   "key": "power_lines",
+   "file": "power_lines.mp4",
+   "poster": "panel.jpg",
+   "caption": "Электр желілері: электр энергиясы үйге осылай жетеді (220 В)",
+   "title": "Power lines at sunset",
+   "page": "https://mixkit.co/free-stock-video/",
+   "license": "Mixkit Free License",
+   "artist": "Mixkit"
+  },
+  {
+   "key": "kettle_pour",
+   "file": "kettle_pour.mp4",
+   "poster": "kettle.jpg",
+   "caption": "Шәйнектен ыстық су құю: қыздырғыш элементі бар құрал (Heating, 100 °C)",
+   "title": "Pouring hot water from a kettle",
+   "page": "https://mixkit.co/free-stock-video/",
+   "license": "Mixkit Free License",
+   "artist": "Mixkit"
+  }
+ ]
+}

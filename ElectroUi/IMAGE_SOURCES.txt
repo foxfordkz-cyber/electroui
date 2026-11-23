@@ -1,0 +1,76 @@
+ЭлектроҮй — суреттер мен видеолардың дереккөздері
+=====================================================
+
+Барлық суреттер Wikimedia Commons сайтынан алынды (ашық лицензиялар).
+Видеолар Mixkit сайтынан алынды (Mixkit Free License — тегін қолдануға болады, авторлықты көрсету міндетті емес,
+бірақ біз бәрібір көрсетеміз). Сайтта бұл деректер «Медиа» бетінде әр суреттің астында көрсетіледі
+(дереккөз: media/credits.json).
+
+СУРЕТТЕР (media/*.jpg)
+----------------------
+hero.jpg       Заманауи пәтер: ас үй мен қонақ бөлме
+               File:Modern luxury living room with kitchen interior.jpg — Shixart1985 — CC BY 2.0
+               https://commons.wikimedia.org/wiki/File:Modern_luxury_living_room_with_kitchen_interior.jpg
+
+panel.jpg      Тұрғын үйдің электр қалқаны
+               File:Inside a residential electrical control panel.jpg — Shixart1985 — CC BY 2.0
+               https://commons.wikimedia.org/wiki/File:Inside_a_residential_electrical_control_panel.jpg
+
+kettle.jpg     Электр шәйнек (Kettle) — Bosch
+               File:2023 Czajnik elektryczny Bosch (2).jpg — Jacek Halicki — CC BY-SA 4.0
+               https://commons.wikimedia.org/wiki/File:2023_Czajnik_elektryczny_Bosch_(2).jpg
+
+fridge.jpg     Тоңазытқыш (Refrigerator) — Panasonic NR-C320
+               File:Panasonic HOME REFRIGERATOR NR-C320WP-N.jpg — Dinkun Chen — CC BY-SA 4.0
+               https://commons.wikimedia.org/wiki/File:Panasonic_HOME_REFRIGERATOR_NR-C320WP-N.jpg
+
+microwave.jpg  Микротолқынды пеш (Microwave) — Panasonic NN-GM333
+               File:Panasonic MICROWAVE OVEN NN-GM333W.jpg — Dinkun Chen — CC BY-SA 4.0
+               https://commons.wikimedia.org/wiki/File:Panasonic_MICROWAVE_OVEN_NN-GM333W.jpg
+
+washer.jpg     Кір жуғыш машина (WashingMachine)
+               File:Front loader Washing machine.jpg — Gb.select — CC BY-SA 4.0
+               https://commons.wikimedia.org/wiki/File:Front_loader_Washing_machine.jpg
+
+vacuum.jpg     Шаңсорғыш (VacuumCleaner) — Hitachi CV-HG5
+               File:Hitachi CV-HG5 20130711.jpg — ミトン — CC BY-SA 4.0
+               https://commons.wikimedia.org/wiki/File:Hitachi_CV-HG5_20130711.jpg
+
+iron.jpg       Үтік (Iron) — Hitachi CSI-M701
+               File:Cordless steam iron CSI-M701A, by HITACHI (2015-06-10) 2.JPG — Lombroso — CC BY-SA 4.0
+               https://commons.wikimedia.org/wiki/File:Cordless_steam_iron_CSI-M701A,_by_HITACHI_(2015-06-10)_2.JPG
+
+tv.jpg         Теледидар (Television) — Samsung LA40C550
+               File:SAMSUNG VA LCD TV LA40C550J1F.jpg — Dinkun Chen — CC BY-SA 4.0
+               https://commons.wikimedia.org/wiki/File:SAMSUNG_VA_LCD_TV_LA40C550J1F.jpg
+
+computer.jpg   Компьютер (Computer)
+               File:RGB desktop computer setup with keyboard and monitor.jpg — SankalpSasnur — CC0
+               https://commons.wikimedia.org/wiki/File:RGB_desktop_computer_setup_with_keyboard_and_monitor.jpg
+
+aircon.jpg     Кондиционер (AirConditioner) — Panasonic CS-C10
+               File:Panasonic AIR CONDITIONER INDOOR UNIT CS-C10KJ2 (2).jpg — Dinkun Chen — CC BY-SA 4.0
+               https://commons.wikimedia.org/wiki/File:Panasonic_AIR_CONDITIONER_INDOOR_UNIT_CS-C10KJ2_(2).jpg
+
+heater.jpg     Майлы жылытқыш (Heater)
+               File:Oil Heater 5293.jpg — Ashley Pomeroy — CC BY 3.0
+               https://commons.wikimedia.org/wiki/File:Oil_Heater_5293.jpg
+
+fan.jpg        Желдеткіш (Fan)
+               File:Ventilator BW 2026-06-19 16-42-30 standing.jpg — Berthold Werner — CC BY-SA 4.0
+               https://commons.wikimedia.org/wiki/File:Ventilator_BW_2026-06-19_16-42-30_standing.jpg
+
+lamp.jpg       Шам (Lamp) — LED E27
+               File:LED-E27-Light-Bulb-1134.jpg — Loadmaster (David R. Tribble) — CC BY-SA 4.0
+               https://commons.wikimedia.org/wiki/File:LED-E27-Light-Bulb-1134.jpg
+
+ВИДЕОЛАР (media/*.mp4) — Mixkit, Mixkit Free License, https://mixkit.co/free-stock-video/
+------------------------------------------------------------------------------------------
+iron_unplug.mp4   Үтікті розеткадан ажырату (hand unplugging an iron)
+bulb_on.mp4       Шамның жануы (light bulb switching on)
+power_lines.mp4   Электр желілері (power lines at sunset)
+kettle_pour.mp4   Шәйнектен ыстық су құю (pouring hot water from a kettle)
+
+КІТАПХАНА
+---------
+static/three.min.js — three.js r149 (0.149.0), MIT License, https://threejs.org
