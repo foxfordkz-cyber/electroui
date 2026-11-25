@@ -92,9 +92,17 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:text="Пәтеріңіздегі электр құралдарын басқару үшін жүйеге кіріңіз"
+                android:text="Құрылғыдағы офлайн пәтер үшін төмендегі аккаунтқа кіріңіз. Сайтпен ортақ пәтер онлайн кабинетте ашылады."
                 android:textColor="#D9FFFFFF"
                 android:textSize="15sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_map"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Астана картасы · онлайн кабинет"
+                app:icon="@drawable/ic_map" />
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/card"

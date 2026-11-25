@@ -59,6 +59,8 @@ public class LoginActivity extends BaseActivity {
         if (prefill != null) login.setText(prefill);
 
         button.setOnClickListener(v -> attempt());
+        findViewById(R.id.btn_map).setOnClickListener(v ->
+                startActivity(new Intent(this, EnergyMapActivity.class)));
         password.setOnEditorActionListener((v, actionId, e) -> {
             if (actionId == EditorInfo.IME_ACTION_DONE) {
                 attempt();

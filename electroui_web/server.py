@@ -38,11 +38,14 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 ROOT = Path(__file__).resolve().parent
-DB = ROOT / 'electroui.db'
+DB = Path(os.environ.get('ELECTROUI_DB') or ROOT / 'electroui.db')
 STATIC = ROOT / 'static'
 MEDIA = ROOT / 'media'
 PORT = int(os.environ.get('PORT', '8090'))
 LOCK = threading.RLock()
+DEMO_LOGINS = {'admin', 'aru'}
+SECTOR_LOGIN = 'sector.admin'  # Public registration does not allow a dot.
+SAMPLE_PLACES = {'aru': (5113, 7143), 'demo_esil': (5109, 7142), 'demo_saryarka': (5118, 7140)}
 
 COOKIE = 'eu_session'
 SESSION_TTL = 7 * 24 * 3600          # сессия 7 күн жарамды
@@ -445,6 +448,11 @@ CREATE TABLE IF NOT EXISTS users (
     blocked       INTEGER NOT NULL DEFAULT 0 CHECK (blocked IN (0, 1)),
     created_at    TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
+CREATE TABLE IF NOT EXISTS apartment_locations (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    lat_cell INTEGER NOT NULL CHECK (lat_cell BETWEEN -8500 AND 8500),
+    lon_cell INTEGER NOT NULL CHECK (lon_cell BETWEEN -18000 AND 18000)
+);
 CREATE TABLE IF NOT EXISTS sessions (
     token_hash TEXT    PRIMARY KEY,
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -555,10 +563,14 @@ SEED_APARTMENT = {
 }
 
 
+def database_path(demo):
+    return DB.with_name(DB.stem + '-demo.db') if demo else DB
+
+
 @contextmanager
-def db():
+def db(demo=False):
     """Дерекқорға қосылу: сыртқы кілттер қосулы, транзакция соңында commit."""
-    c = sqlite3.connect(DB, timeout=10)
+    c = sqlite3.connect(database_path(demo), timeout=10)
     c.row_factory = sqlite3.Row
     c.execute('PRAGMA foreign_keys = ON')
     c.create_function('kz_lower', 1, kz_lower, deterministic=True)
@@ -596,18 +608,33 @@ def type_rows():
 
 
 def init_db():
-    with LOCK, db() as c:
-        c.executescript(SCHEMA)
-        c.executemany(
-            'INSERT INTO appliance_types VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(code) DO UPDATE SET '
-            'class_name=excluded.class_name, name_kz=excluded.name_kz, category=excluded.category, '
-            'category_kz=excluded.category_kz, extra_label=excluded.extra_label, extra_unit=excluded.extra_unit, '
-            'heating=excluded.heating, max_temp=excluded.max_temp', list(type_rows()))
-        for k, v in DEFAULT_SETTINGS.items():
-            c.execute('INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)', (k, str(v)))
-        if value(c, 'SELECT COUNT(*) FROM users') == 0:
-            seed(c)
-            log('Дерекқор жасалды және бастапқы деректермен толтырылды: ' + DB.name)
+    for demo in (False, True):
+        with LOCK, db(demo) as c:
+            init_database(c, demo)
+
+
+def init_database(c, demo):
+    c.executescript(SCHEMA)
+    c.executemany(
+        'INSERT INTO appliance_types VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(code) DO UPDATE SET '
+        'class_name=excluded.class_name, name_kz=excluded.name_kz, category=excluded.category, '
+        'category_kz=excluded.category_kz, extra_label=excluded.extra_label, extra_unit=excluded.extra_unit, '
+        'heating=excluded.heating, max_temp=excluded.max_temp', list(type_rows()))
+    for k, v in DEFAULT_SETTINGS.items():
+        c.execute('INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)', (k, str(v)))
+    if not value(c, 'SELECT 1 FROM catalog LIMIT 1') and not value(c, 'SELECT 1 FROM users LIMIT 1'):
+        seed(c, demo)
+    if demo:
+        return
+    if value(c, 'PRAGMA user_version') == 0:
+        # Legacy administrator grants came from a publicly shared demo login.
+        c.execute("DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE role='ADMIN' OR login='aru')")
+        c.execute("UPDATE users SET role='CLIENT' WHERE role='ADMIN'")
+        c.execute('PRAGMA user_version=1')
+    password = os.environ.get('ELECTROUI_ADMIN_PASSWORD')
+    if password and not value(c, 'SELECT 1 FROM users WHERE login=?', (SECTOR_LOGIN,)):
+        check_password_rules(password)
+        create_user(c, SECTOR_LOGIN, 'Энергия мониторингі', '', password, 'ADMIN')
 
 
 def create_user(c, login, full_name, email, password, role='CLIENT'):
@@ -631,32 +658,47 @@ def event(c, user_id, action, appliance_id=None, details='', power=0):
               (user_id, appliance_id, action, details, power))
 
 
-def seed(c):
+def seed(c, demo):
     c.executemany('INSERT INTO catalog(type, name, brand, power, voltage, energy_class, weight, extra, '
                   'hours_per_day, image) VALUES (?,?,?,?,?,?,?,?,?,?)', SEED_CATALOG)
-    admin_id = create_user(c, 'admin', 'Әкімші', 'admin@electroui.kz', 'Admin123!', 'ADMIN')
+    if not demo:
+        return
+    admin_id = create_user(c, 'admin', 'Сектор әкімшісі', 'admin@electroui.kz', 'Admin123!', 'ADMIN')
     notify(c, admin_id, 'Әкімші панеліне қош келдіңіз',
            'Пайдаланушылар, каталог, жалпы статистика және тариф баптаулары сол жақ мәзірдегі «Әкімші» бөлімінде.',
            'INFO')
     aru_id = create_user(c, 'aru', 'Ару Серікқызы', 'aru@electroui.kz', 'Aru12345!', 'CLIENT')
-    catalog = {r['type']: r for r in rows(c, 'SELECT * FROM catalog')}
-    rooms = {r['name']: r['id'] for r in rows(c, 'SELECT id, name FROM rooms WHERE user_id=?', (aru_id,))}
-    for room_name, items in SEED_APARTMENT.items():
-        for type_code, plugged in items:
-            t = catalog[type_code]
-            cur = c.execute(
-                'INSERT INTO appliances(user_id, room_id, catalog_id, type, name, brand, power, voltage, energy_class, '
-                'weight, extra, hours_per_day, image, plugged) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                (aru_id, rooms[room_name], t['id'], t['type'], t['name'], t['brand'], t['power'], t['voltage'],
-                 t['energy_class'], t['weight'], t['extra'], t['hours_per_day'], t['image'], plugged))
-            event(c, aru_id, 'ADD', cur.lastrowid, f'{t["name"]} → {room_name}', t['power'])
-            if plugged:
-                event(c, aru_id, 'PLUG', cur.lastrowid, f'{t["name"]} розеткаға қосылды', t['power'])
+    furnish(c, aru_id, SEED_APARTMENT)
+    for login, label, layout in [
+        ('demo_esil', 'Есіл үлгісі', {'Ас үй': [('FRIDGE', 1), ('KETTLE', 0)], 'Қонақ бөлме': [('COMPUTER', 1)]}),
+        ('demo_saryarka', 'Сарыарқа үлгісі', {'Жуынатын бөлме': [('WASHER', 1)], 'Жатын бөлме': [('LAMP', 1)]}),
+    ]:
+        uid = create_user(c, login, label, '', secrets.token_urlsafe(32))
+        furnish(c, uid, layout)
+    for login, (lat_cell, lon_cell) in SAMPLE_PLACES.items():
+        c.execute('INSERT INTO apartment_locations SELECT id, ?, ? FROM users WHERE login=?',
+                  (lat_cell, lon_cell, login))
     notify(c, aru_id, 'ЭлектроҮй-ге қош келдіңіз!',
            'Сіздің демо-пәтеріңіз дайын: 4 бөлме, 13 электр құралы. «Менің пәтерім» бетінде құралдарды '
            'розеткаға қосып көріңіз.', 'SUCCESS')
     notify(c, aru_id, 'Кеңес: қуат шегі',
            'Пәтердің жалпы шегі 7 000 Вт (32 А × 220 В). Шектен асқанда ескерту хабарламасы келеді.', 'INFO')
+
+
+def furnish(c, user_id, layout):
+    catalog = {r['type']: r for r in rows(c, 'SELECT * FROM catalog')}
+    rooms = {r['name']: r['id'] for r in rows(c, 'SELECT id, name FROM rooms WHERE user_id=?', (user_id,))}
+    for room_name, items in layout.items():
+        for type_code, plugged in items:
+            t = catalog[type_code]
+            cur = c.execute(
+                'INSERT INTO appliances(user_id, room_id, catalog_id, type, name, brand, power, voltage, energy_class, '
+                'weight, extra, hours_per_day, image, plugged) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                (user_id, rooms[room_name], t['id'], t['type'], t['name'], t['brand'], t['power'], t['voltage'],
+                 t['energy_class'], t['weight'], t['extra'], t['hours_per_day'], t['image'], plugged))
+            event(c, user_id, 'ADD', cur.lastrowid, f'{t["name"]} → {room_name}', t['power'])
+            if plugged:
+                event(c, user_id, 'PLUG', cur.lastrowid, f'{t["name"]} розеткаға қосылды', t['power'])
 
 
 def get_settings(c):
@@ -691,20 +733,26 @@ def public_user(u):
     parts = [p for p in re.split(r'\s+', u['full_name'].strip()) if p]
     initials = ''.join(p[0] for p in parts[:2]).upper() or u['login'][:2].upper()
     return {'id': u['id'], 'login': u['login'], 'fullName': u['full_name'], 'email': u['email'], 'role': u['role'],
-            'blocked': bool(u['blocked']), 'createdAt': u['created_at'], 'initials': initials}
+            'blocked': bool(u['blocked']), 'createdAt': u['created_at'], 'initials': initials,
+            'demo': u['login'].lower() in DEMO_LOGINS}
 
 
 def state(c, user):
+    return dict(apartment_state(c, user['id']), me=public_user(user),
+                unread=value(c, 'SELECT COUNT(*) FROM notifications WHERE user_id=? AND is_read=0', (user['id'],)))
+
+
+def apartment_state(c, user_id):
     """Клиентке керекті толық күй: бөлмелер, құралдар, жиынтық есеп."""
-    apt = load_apartment(c, user['id'])
+    apt = load_apartment(c, user_id)
     rooms = []
     for r in apt.rooms:
         rooms.append({'id': r.id, 'name': r.name, 'sockets': r.sockets, 'used': r.used_sockets(),
                       'free': r.free_sockets(), 'power': r.power(), 'count': len(r.appliances),
+                      'kwhDay': round(sum(a.daily_kwh() for a in r.appliances if a.is_plugged_in()), 3),
                       'overload': r.power() > apt.room_limit})
     total = apt.total_power()
     return {
-        'me': public_user(user),
         'settings': settings_json(get_settings(c)),
         'rooms': rooms,
         'appliances': [a.to_json(apt.tariff) for a in apt.appliances()],
@@ -715,7 +763,6 @@ def state(c, user):
             'overload': total > apt.limit or any(r['overload'] for r in rooms),
             'apartmentOverload': total > apt.limit,
         },
-        'unread': value(c, 'SELECT COUNT(*) FROM notifications WHERE user_id=? AND is_read=0', (user['id'],)),
     }
 
 
@@ -761,13 +808,14 @@ def token_hash(token):
     return hashlib.sha256(token.encode('utf-8')).hexdigest()
 
 
-def new_session(c, user_id):
-    token = secrets.token_urlsafe(32)
+def new_session(c, user_id, demo=False):
+    token = ('demo.' if demo else '') + secrets.token_urlsafe(32)
     now = int(time.time())
     c.execute('DELETE FROM sessions WHERE expires_at < ?', (now,))
     c.execute('INSERT INTO sessions(token_hash, user_id, created_at, expires_at) VALUES (?,?,?,?)',
               (token_hash(token), user_id, now, now + SESSION_TTL))
-    return f'{COOKIE}={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={SESSION_TTL}'
+    secure = '; Secure' if os.environ.get('RENDER') == 'true' else ''
+    return f'{COOKIE}={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={SESSION_TTL}{secure}'
 
 
 def clear_cookie():
@@ -868,7 +916,8 @@ def free_sockets(c, room):
 def do_register(c, user, d):
     full_name = text(d, 'fullName', 'Аты-жөні', 2, 60)
     login = str(d.get('login') or '').strip()
-    require(LOGIN_RE.match(login), 'Логин 3–20 таңба: латын әріптері, цифрлар және _ ғана.')
+    require(login.lower() not in DEMO_LOGINS, 'Бұл логин үлгі аккаунтына тиесілі.')
+    require(LOGIN_RE.fullmatch(login), 'Логин 3–20 таңба: латын әріптері, цифрлар және _ ғана.')
     email = str(d.get('email') or '').strip()
     require(EMAIL_RE.match(email) and len(email) <= 80, 'Email форматы қате (мысалы: name@mail.kz).')
     password = d.get('password') or ''
@@ -903,7 +952,7 @@ def do_login(c, user, d):
     require(not u['blocked'], 'Аккаунтыңыз әкімші тарапынан бұғатталған.', 403)
     FAILS.pop(login.lower(), None)
     log(f'LOGIN: «{u["login"]}» ({u["role"]}) жүйеге кірді')
-    return {'user': public_user(u), '_cookie': new_session(c, u['id'])}
+    return {'user': public_user(u), '_cookie': new_session(c, u['id'], login.lower() in DEMO_LOGINS)}
 
 
 def get_me(c, user, q):
@@ -925,6 +974,55 @@ def get_meta(c, user, q):
 
 def get_state(c, user, q):
     return state(c, user)
+
+
+def get_apartments(c, user, q):
+    # A resident's query never loads another household's records.
+    scope = '' if user['role'] == 'ADMIN' else 'AND u.id = ?'
+    args = () if user['role'] == 'ADMIN' else (user['id'],)
+    records = rows(c, f"""
+        SELECT u.id, u.login, l.lat_cell, l.lon_cell,
+               COALESCE(SUM(CASE WHEN a.plugged THEN a.power END), 0) AS power,
+               COALESCE(SUM(CASE WHEN a.plugged THEN a.power * a.hours_per_day END), 0) / 1000.0 AS kwh
+        FROM users u LEFT JOIN apartment_locations l ON l.user_id=u.id
+        LEFT JOIN appliances a ON a.user_id=u.id
+        WHERE (u.role='CLIENT' OR l.user_id IS NOT NULL OR a.id IS NOT NULL) {scope}
+        GROUP BY u.id ORDER BY l.lat_cell IS NULL, u.id""", args)
+    sample_names = {'aru': 'Арудың үлгі пәтері', 'demo_esil': 'Есілдегі үлгі пәтер',
+                    'demo_saryarka': 'Сарыарқадағы үлгі пәтер'}
+    items = []
+    for r in records:
+        point = None if r['lat_cell'] is None else [r['lat_cell'] / 100, r['lon_cell'] / 100]
+        label = f"Пәтер №{r['id']}"
+        if user['login'].lower() in DEMO_LOGINS:
+            label = sample_names.get(r['login'], label)
+        items.append({'id': r['id'], 'label': label, 'point': point, 'power': r['power'],
+                      'kwhDay': round(r['kwh'], 3)})
+    return {'items': items}
+
+
+def get_apartment_view(c, user, q):
+    uid = as_int(q.get('id'))
+    require(uid == user['id'] or user['role'] == 'ADMIN', 'Тек өз пәтеріңізді көре аласыз.', 403)
+    require(value(c, 'SELECT 1 FROM users WHERE id=?', (uid,)), 'Пәтер табылмады.', 404)
+    return apartment_state(c, uid)
+
+
+def set_apartment_location(c, user, data):
+    require(user['role'] == 'CLIENT', 'Орынды пәтер иесі таңдайды.', 403)
+    if data == {'remove': True}:
+        c.execute('DELETE FROM apartment_locations WHERE user_id=?', (user['id'],))
+    else:
+        require(set(data) == {'latCell', 'lonCell'}, 'Картадан бір орынды таңдаңыз.')
+        lat, lon = data['latCell'], data['lonCell']
+        require(type(lat) is int and type(lon) is int and -8500 <= lat <= 8500 and -18000 <= lon <= 18000,
+                'Картадағы орын жарамсыз.')
+        if user['login'].lower() in DEMO_LOGINS:
+            require((lat, lon) in SAMPLE_PLACES.values(), 'Демо режимінде тек үлгі орындар қолданылады.', 403)
+        c.execute("""INSERT INTO apartment_locations(user_id, lat_cell, lon_cell) VALUES (?,?,?)
+                     ON CONFLICT(user_id) DO UPDATE SET lat_cell=excluded.lat_cell, lon_cell=excluded.lon_cell""",
+                  (user['id'], lat, lon))
+    return get_apartments(c, user, {})
 
 
 def get_catalog(c, user, q):
@@ -1154,6 +1252,7 @@ def get_media(c, user, q):
 
 
 def do_profile(c, user, d):
+    require(user['login'].lower() not in DEMO_LOGINS, 'Жеке деректер үшін өз аккаунтыңызға кіріңіз.', 403)
     full_name = text(d, 'fullName', 'Аты-жөні', 2, 60)
     email = str(d.get('email') or '').strip()
     require(EMAIL_RE.match(email) and len(email) <= 80, 'Email форматы қате.')
@@ -1162,6 +1261,7 @@ def do_profile(c, user, d):
 
 
 def do_password(c, user, d):
+    require(user['login'].lower() not in DEMO_LOGINS, 'Ортақ демо-аккаунттың құпиясөзі бекітілген.', 403)
     old = str(d.get('old') or '')
     new = str(d.get('new') or '')
     require(verify_password(old, user['salt'], user['password_hash']), 'Ағымдағы құпиясөз қате.')
@@ -1192,6 +1292,7 @@ def target_user(c, user, d, self_error):
     t = one(c, 'SELECT * FROM users WHERE id=?', (uid,))
     require(t, 'Пайдаланушы табылмады.', 404)
     require(uid != user['id'], self_error)
+    require(t['login'].lower() not in DEMO_LOGINS | {SECTOR_LOGIN}, 'Бұл қызметтік аккаунт қорғалған.', 403)
     return t
 
 
@@ -1374,6 +1475,7 @@ def get_admin_stats(c, user, q):
 
 
 GET_ACTIONS = {
+    'apartments': (get_apartments, 'user'), 'apartment-view': (get_apartment_view, 'user'),
     'me': (get_me, 'public'), 'meta': (get_meta, 'public'),
     'state': (get_state, 'user'), 'catalog': (get_catalog, 'user'), 'sort': (get_sort, 'user'),
     'search': (get_search, 'user'), 'notifications': (get_notifications, 'user'),
@@ -1382,6 +1484,7 @@ GET_ACTIONS = {
     'admin/settings': (get_admin_settings, 'admin'), 'admin/broadcasts': (get_admin_broadcasts, 'admin'),
 }
 POST_ACTIONS = {
+    'apartment-location': (set_apartment_location, 'user'),
     'register': (do_register, 'public'), 'login': (do_login, 'public'),
     'appliance_add': (do_appliance_add, 'user'), 'appliance_update': (do_appliance_update, 'user'),
     'appliance_delete': (do_appliance_delete, 'user'), 'plug': (do_plug, 'user'),
@@ -1533,7 +1636,12 @@ class Handler(BaseHTTPRequestHandler):
             query = {k: v[-1] for k, v in parse_qs(url.query).items()}
             table = POST_ACTIONS if method == 'POST' else GET_ACTIONS
             token = self.token()
-            with LOCK, db() as c:
+            demo = bool(token and token.startswith('demo.'))
+            if method == 'POST' and name == 'login':
+                demo = str(data.get('login') or '').strip().lower() in DEMO_LOGINS
+            elif method == 'POST' and name == 'register':
+                demo = False
+            with LOCK, db(demo) as c:
                 user = self.session_user(c, token)
                 login = user['login'] if user else '-'
                 if method == 'POST' and name == 'logout':
@@ -1592,9 +1700,12 @@ def main():
             stream.reconfigure(encoding='utf-8', errors='replace')
         except (AttributeError, ValueError):
             pass
-    if '--reset' in sys.argv and DB.exists():
-        DB.unlink()
-        print(' electroui.db жойылды — бастапқы деректермен қайта жасалады.')
+    if '--reset' in sys.argv:
+        for demo in (False, True):
+            path = database_path(demo)
+            if path.exists():
+                path.unlink()
+                print(f' {path.name} жойылды — бастапқы деректермен қайта жасалады.')
     init_db()
     try:
         server = Server(('0.0.0.0', PORT), Handler)

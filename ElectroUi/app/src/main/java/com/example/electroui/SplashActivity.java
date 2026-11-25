@@ -68,8 +68,11 @@ public class SplashActivity extends BaseActivity {
     private void tryContinue() {
         if (!dbReady || !minTimePassed || isFinishing()) return;
         User user = Session.user(this);
-        Intent next = new Intent(this, user == null ? LoginActivity.class : MainActivity.class);
         String open = getIntent().getStringExtra(com.example.electroui.util.Notifier.EXTRA_OPEN);
+        boolean online = getSharedPreferences("navigation", MODE_PRIVATE).getBoolean("online", user == null);
+        Class<?> destination = user == null ? LoginActivity.class : MainActivity.class;
+        if (open == null && online) destination = EnergyMapActivity.class;
+        Intent next = new Intent(this, destination);
         if (open != null) next.putExtra(com.example.electroui.util.Notifier.EXTRA_OPEN, open); // қай бөлімді ашу
         startActivity(next);
         overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);

@@ -329,5 +329,17 @@
                 app:drawableStartCompat="@drawable/ic_eco"
                 app:drawableTint="?attr/colorOnPrimaryContainer" />
         </com.google.android.material.card.MaterialCardView>
+        <TextView
+            style="@style/Text.Section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Біз туралы" />
+        <TextView
+            style="@style/Text.Body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="ЭлектроҮй — үйдегі электр тұтынуын зерттейтін оқу жобасы. Астана картасындағы онлайн кабинет сайтпен ортақ. Офлайн пәтердің деректері осы құрылғыда сақталады." />
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

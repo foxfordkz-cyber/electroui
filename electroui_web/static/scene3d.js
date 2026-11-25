@@ -521,7 +521,7 @@
     const s = new T.Sprite(new T.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false }));
     s.renderOrder = 10;
     s.scale.set(3.3, 3.3 * (168 / 512), 1);
-    s.userData.draw = (title, sub, danger) => {
+    s.userData.draw = (title, sub, danger, energy = '') => {
       const g = c.getContext('2d');
       g.clearRect(0, 0, 512, 168);
       const dark = isDark();
@@ -534,10 +534,11 @@
       g.textAlign = 'center';
       g.fillStyle = danger ? '#ef4444' : (dark ? '#e9edff' : '#0e1630');
       g.font = '700 50px "Segoe UI", system-ui, sans-serif';
-      g.fillText(title, 256, 74);
+      g.fillText(title, 256, energy ? 58 : 74, 474);
       g.fillStyle = danger ? '#f87171' : (dark ? '#9aa6d0' : '#56617f');
       g.font = '600 36px "Segoe UI", system-ui, sans-serif';
-      g.fillText(sub, 256, 130);
+      g.fillText(sub, 256, energy ? 102 : 130, 474);
+      if (energy) g.fillText(energy, 256, 145, 474);
       tex.needsUpdate = true;
     };
     return s;
@@ -760,7 +761,9 @@
         const rs = st.rooms.find((x) => x.id === r.id);
         if (!rs) return;
         r.over = rs.overload;
-        r.label.userData.draw(rs.name, `${rs.used}/${rs.sockets} розетка · ${fmt(rs.power)} Вт`, rs.overload);
+        const energy = window.Electro.fmtNum(rs.kwhDay, 2);
+        r.label.userData.draw(rs.name, `${rs.used}/${rs.sockets} розетка · ${fmt(rs.power)} Вт`, rs.overload,
+          `${energy} кВт·сағ/тәул.`);
         if (!rs.overload) { r.fm.emissive.copy(BLACK); r.fm.emissiveIntensity = 0; }
       });
       const u = env.userData;

@@ -502,6 +502,7 @@
     await pollNotifs(true);
     clearInterval(S.poll);
     S.poll = setInterval(() => pollNotifs(false), 15000);
+    if (user.role === 'ADMIN' && (!location.hash || location.hash === '#/dashboard')) history.replaceState(null, '', '#/map');
     route();
   }
 
@@ -524,6 +525,7 @@
   /* ======================= ҚАБЫҚ: САЙДБАР, ТОПБАР ======================= */
   const PAGES = {
     dashboard: { nav: 'Басты бет', title: 'Басты бет', sub: 'Пәтердің электр жүктемесі бір қарағанда', icon: 'home', group: 'Негізгі', render: pageDashboard },
+    map: { nav: 'Астана картасы', title: 'Пәтерлер картасы', sub: 'Астана · Электр тұтынуы және 3D пәтерлер', icon: 'building', group: 'Негізгі', render: pageMap },
     task: { nav: 'Тапсырма', title: 'Тапсырма: Үйдегі электр құралдары', sub: '5 қадам және қосымша талаптар', icon: 'task', group: 'Негізгі', render: pageTask },
     hierarchy: { nav: 'Иерархия', title: 'Класс иерархиясы', sub: '1-қадам · ElectricAppliance және оның ұрпақтары', icon: 'tree', group: 'Тапсырма қадамдары', step: 1, render: pageHierarchy },
     apartment: { nav: 'Менің пәтерім', title: 'Менің пәтерім', sub: '2-қадам · құралдарды розеткаға қосу', icon: 'building', group: 'Тапсырма қадамдары', step: 2, render: pageApartment },
@@ -560,7 +562,7 @@
     if (!S.user || !S.state) return;
     const u = S.user;
     $('#sb-user').innerHTML = `<a class="avatar" href="#/profile" title="Профиль">${esc(u.initials)}</a>
-      <div class="who"><b>${esc(u.fullName)}</b><span class="badge ${u.role === 'ADMIN' ? 'admin' : 'client'}">${ic(u.role === 'ADMIN' ? 'crown' : 'user')}${u.role === 'ADMIN' ? 'ADMIN · Әкімші' : 'CLIENT · Клиент'}</span></div>
+      <div class="who"><b>${esc(u.fullName)}</b><span class="badge ${u.role === 'ADMIN' ? 'admin' : 'client'}">${ic(u.role === 'ADMIN' ? 'crown' : 'user')}${u.role === 'ADMIN' ? 'Сектор әкімшісі' : 'Тұрғын'}</span></div>
       <button class="icon-btn" id="logout-btn" title="Шығу" aria-label="Шығу">${ic('logout')}</button>`;
     $('#logout-btn').onclick = logout;
     $('#top-avatar').textContent = u.initials;
@@ -649,8 +651,11 @@
     if (S.page && S.page.destroy) S.page.destroy();
     S.route = name;
     const p = PAGES[name];
-    $('#page-title').textContent = p.title;
-    $('#page-sub').textContent = p.sub;
+    const operator = S.user.role === 'ADMIN';
+    $('#power-chip').hidden = name === 'map' && operator;
+    $('#page-title').textContent = name === 'map' && operator ? 'Сектордың энергия картасы' : p.title;
+    $('#page-sub').textContent = name === 'map' && operator
+      ? (S.user.demo ? 'Мемлекеттік сектор · Үлгі пәтерлер' : 'Мемлекеттік сектор · Пәтерлердің энергия тұтынуы') : p.sub;
     document.title = `${p.nav} — ЭлектроҮй`;
     $$('#nav a').forEach((a) => a.classList.toggle('active', a.dataset.route === name));
     $('#shell').classList.remove('drawer');
@@ -846,7 +851,7 @@
         <p class="muted small">${todayKz()}</p>
         <h2>Сәлем, ${esc(first)}! <span class="grad-text">Пәтеріңіздің энергиясы</span> бақылауда.</h2>
         <p data-summary></p>
-        <div class="row"><a class="btn btn-primary" href="#/apartment">${ic('plug')}Менің пәтерім</a><a class="btn" href="#/three">${ic('cube')}3D пәтер</a><a class="btn" href="#/task">${ic('task')}Тапсырма</a></div>
+        <div class="row"><a class="btn btn-primary" href="#/apartment">${ic('plug')}Менің пәтерім</a><a class="btn" href="#/three">${ic('cube')}3D пәтер</a><a class="btn" href="#/map">${ic('building')}Астана картасы</a></div>
       </div>
       <div data-banner></div>
       <div class="stats">
@@ -1500,8 +1505,15 @@ ${heat ? `    @Override
   }
 
   /* ======================= БЕТ: 3D ПӘТЕР ======================= */
-  function pageThree(root) {
+  function pageMap(root) {
+    return window.ApartmentAtlas.open(root, { user: S.user, api, pageThree, setState, ownState: () => S.state, fW, fKwh, ic });
+  }
+
+  function pageThree(root, inspection = null) {
+    const view = inspection
+      ? { state: inspection, apt: new E.Apartment(inspection.rooms, inspection.appliances, inspection.settings) } : S;
     root.innerHTML = `
+      <div class="row between"><a class="btn btn-sm" href="#/map" data-back-map>${ic('building')}Картаға оралу</a></div>
       <div class="stage" data-stage>
         <div class="hud"><div class="glass"><div class="muted tiny">Жалпы қуат · <span data-hud-count></span></div><div class="big" data-hud-power>—</div><div class="load"><i data-hud-load></i></div><div class="tiny muted" data-hud-sub style="margin-top:4px"></div></div></div>
         <div class="hud-controls">
@@ -1513,22 +1525,26 @@ ${heat ? `    @Override
         <div class="hud-help">${ic('cube').replace('<svg ', '<svg style="width:14px;height:14px;vertical-align:-2px" ')} Сүйреп айналдырыңыз · дөңгелекшемен / екі саусақпен масштабтаңыз · құралды басыңыз</div>
       </div>
       <div class="card"><div class="card-head"><h3><span class="ic">${ic('building')}</span>Бөлмелер мен құралдар</h3><span class="legend"><span><i style="background:var(--accent);box-shadow:0 0 8px var(--accent)"></i>розеткаға қосулы (жарқырайды, ток ағады)</span><span><i style="background:#64748b"></i>өшірулі</span><span><i style="background:#ef4444"></i>шамадан тыс жүктеме</span></span></div>
-        <div class="grid g4" data-rooms></div></div>`;
+        <div class="grid g4" data-rooms></div>
+        ${inspection ? '' : '<button class="btn btn-sm" data-add-in-model style="margin-top:14px">Құрал қосу</button>'}</div>`;
+    const addInModel = $('[data-add-in-model]', root);
+    if (addInModel) addInModel.onclick = () => openAddModal();
+    if (root.closest('[data-atlas-model]')) $('[data-back-map]', root).parentElement.remove();
     const stage = $('[data-stage]', root);
     let scene = null; let selectedId = null; let planRender = null;
     const hud = () => {
-      const t = S.state.totals; const set = S.state.settings;
+      const t = view.state.totals; const set = view.state.settings;
       $('[data-hud-power]', root).textContent = fW(t.power, 0);
       $('[data-hud-power]', root).style.color = t.apartmentOverload ? 'var(--danger)' : '';
       $('[data-hud-load]', root).style.width = Math.min(100, t.loadPct) + '%';
       $('[data-hud-count]', root).textContent = `${t.plugged} құрал қосулы`;
-      $('[data-hud-sub]', root).textContent = `${fmt(t.loadPct, 0)}% · шегі ${fW(set.apartmentLimit, 0)}`;
+      $('[data-hud-sub]', root).textContent = `${fmt(t.loadPct, 0)}% · шегі ${fW(set.apartmentLimit, 0)} · ${fKwh(t.kwhDay)}/тәул.`;
     };
     const roomsList = () => {
-      $('[data-rooms]', root).innerHTML = S.apt.rooms.map((r) => {
-        const rs = S.state.rooms.find((x) => x.id === r.id);
+      $('[data-rooms]', root).innerHTML = view.apt.rooms.map((r) => {
+        const rs = view.state.rooms.find((x) => x.id === r.id);
         return `<div class="stack" style="gap:8px"><div class="row" style="gap:8px">${ic(roomIcon(r.name)).replace('<svg ', '<svg style="width:18px;height:18px;color:var(--accent)" ')}<b>${esc(r.name)}</b>${socketsHTML(r.usedSockets(), r.sockets)}</div>
-          <span class="small ${rs.overload ? '' : 'muted'}" style="${rs.overload ? 'color:var(--danger);font-weight:700' : ''}">${fW(r.power(), 0)} / ${fW(S.state.settings.roomLimit, 0)}</span>
+          <span class="small ${rs.overload ? '' : 'muted'}" style="${rs.overload ? 'color:var(--danger);font-weight:700' : ''}">${fW(r.power(), 0)} / ${fW(view.state.settings.roomLimit, 0)}</span>
           <div class="chips">${r.appliances.map((a) => `<button class="chip ${a.pluggedIn ? 'active' : ''}" data-sel="${a.id}" title="${esc(a.name)}">${ic(TYPE_ICON[a.type])}${esc(a.kz)}</button>`).join('') || '<span class="muted small">құрал жоқ</span>'}</div></div>`;
       }).join('');
       $$('[data-sel]', root).forEach((b) => b.addEventListener('click', () => { if (scene) scene.select(+b.dataset.sel); else showInfo(+b.dataset.sel); stage.scrollIntoView({ behavior: 'smooth', block: 'center' }); }));
@@ -1537,18 +1553,19 @@ ${heat ? `    @Override
       selectedId = id;
       let box = $('.info3d', stage);
       if (!id) { if (box) box.remove(); return; }
-      const a = S.apt.appliances.find((x) => x.id === id);
+      const a = view.apt.appliances.find((x) => x.id === id);
       if (!a) { if (box) box.remove(); return; }
       if (!box) { box = el('<div class="info3d glass"></div>'); stage.append(box); }
       const free = a.room ? a.room.freeSockets() : 0;
       box.innerHTML = `<button class="icon-btn x" aria-label="Жабу">${ic('x')}</button>
         ${a.image ? `<img src="media/${esc(a.image)}" alt="">` : ''}
         <div><b style="font-size:16px">${esc(a.name)}</b><div class="muted small">${esc(a.kz)} · <span class="mono">${a.constructor.name}</span> · ${esc(a.room ? a.room.name : '')}</div></div>
-        <div class="kv"><span>Қуаты P</span><b>${fW(a.power)}</b><span>Ток I</span><b>${fA(a.current())}</b><span>Тәулігіне E</span><b>${fKwh(a.dailyKwh())}</b><span>Айына</span><b>${fT(a.monthlyCost(S.state.settings.tariff))}</b><span>Класс</span><b>${eclass(a.energyClass)}</b></div>
+        <div class="kv"><span>Қуаты P</span><b>${fW(a.power)}</b><span>Ток I</span><b>${fA(a.current())}</b><span>Тәулігіне E</span><b>${fKwh(a.dailyKwh())}</b><span>Айына</span><b>${fT(a.monthlyCost(view.state.settings.tariff))}</b><span>Класс</span><b>${eclass(a.energyClass)}</b></div>
         <p class="small muted">${esc(a.describe())}</p>
         <button class="btn ${a.pluggedIn ? 'btn-danger' : 'btn-primary'}" data-toggle ${!a.pluggedIn && free <= 0 ? 'title="Бұл бөлмеде бос розетка жоқ"' : ''}>${ic(a.pluggedIn ? 'power' : 'plug')}${a.pluggedIn ? 'Розеткадан ажырату' : 'Розеткаға қосу'}</button>
         <span class="tiny muted">${a.room ? `«${esc(a.room.name)}»: бос розетка ${free} / ${a.room.sockets}` : ''}</span>`;
       $('.x', box).onclick = () => { if (scene) scene.select(null); showInfo(null); };
+      if (inspection) { $('[data-toggle]', box).remove(); return; }
       $('[data-toggle]', box).onclick = async (e) => {
         const btn = e.currentTarget; btn.classList.add('loading');
         await togglePlug(a.id, !a.pluggedIn);
@@ -1557,18 +1574,18 @@ ${heat ? `    @Override
     };
     const update = () => {
       hud(); roomsList();
-      if (scene) scene.update(S.state);
+      if (scene) scene.update(view.state);
       if (selectedId) showInfo(selectedId);
     };
     if (window.Scene3D) {
-      scene = Scene3D.createApartment(stage, { state: S.state, onSelect: (id) => showInfo(id) });
+      scene = Scene3D.createApartment(stage, { state: view.state, onSelect: (id) => showInfo(id) });
     }
     if (!scene) {
       const fb = el(`<div class="fallback3d"><div class="banner" style="animation:none"><span class="ic">${ic('cube')}</span><div class="txt"><b>3D көрініс қолжетімсіз</b><p class="small">Браузеріңіз WebGL қолдамайды немесе ол өшірулі (немесе static/three.min.js табылмады). Төменде пәтердің 2D жоспары көрсетілген.</p></div></div><div class="plan2d" data-plan></div></div>`);
       stage.append(fb);
       $$('.hud-controls, .hud-help', stage).forEach((n) => n.remove());
       const renderPlan = () => {
-        $('[data-plan]', fb).innerHTML = S.apt.rooms.map((r) => `<div class="rm"><h4>${esc(r.name)} · ${fW(r.power(), 0)}</h4><div class="chips">${r.appliances.map((a) => `<button class="chip ${a.pluggedIn ? 'active' : ''}" data-sel2="${a.id}">${ic(a.pluggedIn ? 'plug' : 'power')}${esc(a.name)}</button>`).join('')}</div></div>`).join('');
+        $('[data-plan]', fb).innerHTML = view.apt.rooms.map((r) => `<div class="rm"><h4>${esc(r.name)} · ${fW(r.power(), 0)}</h4><div class="chips">${r.appliances.map((a) => `<button class="chip ${a.pluggedIn ? 'active' : ''}" data-sel2="${a.id}">${ic(a.pluggedIn ? 'plug' : 'power')}${esc(a.name)}</button>`).join('')}</div></div>`).join('');
         $$('[data-sel2]', fb).forEach((b) => b.addEventListener('click', () => showInfo(+b.dataset.sel2)));
       };
       renderPlan();
@@ -1586,7 +1603,7 @@ ${heat ? `    @Override
       }
     }));
     hud(); roomsList();
-    const pre = +store.get('select3d', '0');
+    const pre = !inspection && +store.get('select3d', '0');
     if (pre && scene) { store.set('select3d', '0'); setTimeout(() => scene && scene.select(pre), 600); }
     return {
       onState() { update(); if (planRender) planRender(); },

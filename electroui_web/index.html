@@ -7,7 +7,10 @@
   <meta name="description" content="«Үйдегі электр құралдары» ООП тапсырмасы: класс иерархиясы, розеткаға қосу, қуатты есептеу, сұрыптау және іздеу.">
   <meta name="theme-color" content="#070b18">
   <link rel="icon" href="static/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="static/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="static/vendor/maplibre/maplibre-gl.css">
   <link rel="stylesheet" href="static/app.css">
+  <link rel="stylesheet" href="static/atlas.css">
   <script>
     /* Тақырыпты бет жүктелместен бұрын орнату (жыпылықтамау үшін). */
     (function () {
@@ -83,8 +86,8 @@
           <div class="demo-accounts">
             <span class="muted small">Тест аккаунттары (басып толтыру):</span>
             <div class="demo-row">
-              <button type="button" class="demo-chip" data-login="admin" data-pass="Admin123!"><b>admin</b> · Әкімші</button>
-              <button type="button" class="demo-chip" data-login="aru" data-pass="Aru12345!"><b>aru</b> · Клиент</button>
+              <button type="button" class="demo-chip" data-login="admin" data-pass="Admin123!"><b>admin</b> · Сектор демосы</button>
+              <button type="button" class="demo-chip" data-login="aru" data-pass="Aru12345!"><b>aru</b> · Тұрғын демосы</button>
             </div>
           </div>
         </form>
@@ -124,6 +127,7 @@
             <small class="hint" data-hint="confirm"></small>
           </label>
           <div class="form-error" id="register-error" role="alert" hidden></div>
+          <p class="small muted">Пәтердің 3D үлгісі мен есептік тұтынуын өзіңіз және сектор әкімшісі көре аласыздар. Картаға орынды кейін өзіңіз қосасыз.</p>
           <button class="btn btn-primary btn-block" type="submit"><span>Тіркелу</span></button>
         </form>
         <p class="secure-note">
@@ -170,6 +174,14 @@
     </div>
   </div>
 
+  <footer class="site-about" aria-labelledby="about-title">
+    <div><h2 id="about-title">Біз туралы</h2>
+      <p>ЭлектроҮй — Астана мысалында үйдегі электр тұтынуын зерттеуге арналған оқу жобасы.
+        Тұрғын өз пәтерін картаға қосып, 3D үлгіде әр құралдың жүктемесін көре алады.</p>
+      <p>Мемлекеттік сектордың оқу кабинетінде әкімші пәтерлердің қуаты мен есептік тәуліктік тұтынуын салыстырады.
+        Есеп құралдардың қуаты мен жұмыс уақытына негізделеді.</p>
+    </div>
+  </footer>
   <div id="toasts" class="toasts" aria-live="polite"></div>
   <div id="modal-root"></div>
 
@@ -178,6 +190,9 @@
   <script src="static/three.min.js"></script>
   <script src="static/model.js"></script>
   <script src="static/scene3d.js"></script>
+  <script src="static/vendor/leaflet/leaflet.js"></script>
+  <script src="static/city-scene.js"></script>
+  <script src="static/atlas.js"></script>
   <script src="static/app.js"></script>
 </body>
 </html>

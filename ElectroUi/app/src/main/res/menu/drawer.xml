@@ -5,6 +5,7 @@
         android:title="Тапсырма">
         <menu>
             <item android:id="@+id/nav_home" android:checkable="true" android:icon="@drawable/ic_home" android:title="Басты бет" />
+            <item android:id="@+id/nav_map" android:icon="@drawable/ic_map" android:title="Астана картасы · онлайн" />
             <item android:id="@+id/nav_hierarchy" android:checkable="true" android:icon="@drawable/ic_tree" android:title="1. Құралдар иерархиясы" />
             <item android:id="@+id/nav_apartment" android:checkable="true" android:icon="@drawable/ic_plug" android:title="2. Розеткаға қосу" />
             <item android:id="@+id/nav_calc" android:checkable="true" android:icon="@drawable/ic_calc" android:title="3. Қуатты есептеу" />

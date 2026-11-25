@@ -184,6 +184,10 @@ public class MainActivity extends BaseActivity {
 
     // ------------------------------------------------------------------ навигация
     public void open(int id) {
+        if (id == R.id.nav_map) {
+            startActivity(new Intent(this, EnergyMapActivity.class));
+            return;
+        }
         if (id == R.id.nav_logout) {
             confirmLogout();
             return;
@@ -336,6 +340,7 @@ public class MainActivity extends BaseActivity {
 
     public void logout() {
         Session.end(this);
+        android.webkit.CookieManager.getInstance().removeAllCookies(null);
         startActivity(new Intent(this, LoginActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
         finish();
     }

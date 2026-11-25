@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/map_root" android:orientation="vertical"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="?attr/colorSurface">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:paddingStart="16dp" android:paddingEnd="8dp" android:gravity="center_vertical">
+        <TextView style="@style/Text.Section" android:layout_width="0dp"
+            android:layout_weight="1" android:layout_height="wrap_content" android:text="Онлайн кабинет" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/device_mode" style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Офлайн нұсқа" app:icon="@drawable/ic_home" />
+    </LinearLayout>
+    <ProgressBar android:id="@+id/map_loading" style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent" android:layout_height="3dp" android:max="100" />
+    <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+        <WebView android:id="@+id/map_web" android:layout_width="match_parent" android:layout_height="match_parent" />
+        <LinearLayout android:id="@+id/map_error" android:layout_width="match_parent"
+            android:layout_height="match_parent" android:orientation="vertical" android:gravity="center"
+            android:padding="24dp" android:visibility="gone" android:background="?attr/colorSurface">
+            <TextView style="@style/Text.Section" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="Онлайн кабинетке қосылмады" />
+            <TextView style="@style/Text.Body" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:gravity="center" android:layout_marginTop="8dp"
+                android:text="Интернет қосылымын тексеріңіз. Құрылғыдағы пәтерді офлайн нұсқадан аша аласыз." />
+            <com.google.android.material.button.MaterialButton android:id="@+id/map_retry"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginTop="16dp" android:text="Қайталап көру" />
+        </LinearLayout>
+    </FrameLayout>
+</LinearLayout>

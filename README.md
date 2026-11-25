@@ -4,9 +4,9 @@
 
 | Не керек? | Қайдан алуға болады? |
 | --- | --- |
-| Телефонға орнату | [Дайын APK файлын жүктеу](https://github.com/foxfordkz-cyber/electroui/releases/download/v1.0/ElectroUi.apk) · Android 8.0 және одан жоғары |
+| Телефонға орнату | [Дайын APK файлын жүктеу](https://electroui.onrender.com/media/electroui.apk) · Android 8.0 және одан жоғары |
 | Android Studio жобасы | [ElectroUi](ElectroUi/) · [Java коды](ElectroUi/app/src/main/java/com/example/electroui/) |
-| Сайт | [electroui_web](electroui_web/) · [Python сервері](electroui_web/server.py) · [веб-интерфейс коды](electroui_web/static/) |
+| Сайт | [Астана картасын ашу](https://electroui.onrender.com/#/map) · [Python сервері](electroui_web/server.py) · [веб-интерфейс коды](electroui_web/static/) |
 | Есепке арналған скриншоттар | [Бөлімдер бойынша көрсеткіш](report-screenshots/) · [Барлығын ZIP түрінде жүктеу](https://github.com/foxfordkz-cyber/electroui/releases/download/v1.0/ElectroUi-Report-Screenshots.zip) |
 
 ## Іске қосу
@@ -16,6 +16,11 @@
 **Сайт.** Жобаны компьютерге жүктеп, архивті ашыңыз. Python 3.10 немесе одан жаңасы орнатылған компьютерде `electroui_web/start.bat` файлын іске қосыңыз. macOS пен Linux жүйелерінде `electroui_web` бумасында `python3 server.py` командасын орындаңыз. Браузерде `http://localhost:8090` мекенжайын ашыңыз. Бірінші іске қосылғанда сервер SQLite дерекқорын демодеректермен толтырады. [Сайт нұсқаулығы](electroui_web/README.txt)
 
 ## Демоаккаунттар
+
+Телефондағы онлайн кабинет пен сайт бір аккаунтты және бір пәтерді пайдаланады.
+Тұрғын GPS арқылы немесе картадан шамамен орналасқан жерін белгілейді. Сектор әкімшісі
+пәтерлердің есептік тұтынуын салыстырып, әрқайсысын 3D үлгіде ашады. Ортақ демо
+логиндермен тек үлгі деректер көрінеді. Бұрынғы офлайн пәтер телефонның өзінде сақталады.
 
 | Рөл | Логин | Құпиясөз |
 | --- | --- | --- |
