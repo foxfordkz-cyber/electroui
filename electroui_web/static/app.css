@@ -234,6 +234,9 @@ input.valid { border-color: color-mix(in srgb, var(--ok) 70%, transparent); }
 .seg button.active { background: linear-gradient(120deg, var(--accent), color-mix(in srgb, var(--accent) 55%, var(--accent-2))); color: #fff; box-shadow: 0 4px 14px rgba(var(--accent-rgb), .35); }
 .seg-wide { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 100%; }
 .seg-wide button { padding: 10px; font-size: 14px; justify-content: center; }
+.layout-picker { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.layout-picker .seg button { min-height: 38px; }
+.atlas-directory .layout-picker { margin: 0 16px 14px; }
 
 /* chips */
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -634,6 +637,7 @@ pre.code .k { color: #c792ea; } pre.code .s { color: #c3e88d; } pre.code .n { co
 .plan2d .rm { border: 2px solid var(--border-strong); border-radius: 14px; padding: 12px; min-height: 120px; background: var(--surface-hover); }
 .plan2d .rm h4 { font-size: 14px; margin-bottom: 8px; }
 .plan2d .rm .chips .chip.active { color: var(--accent); }
+@media (min-width: 641px) { .plan2d.one-room .rm:nth-child(2) { grid-column: 2; grid-row: 1 / span 2; } }
 
 /* ---------- media ---------- */
 .video-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }

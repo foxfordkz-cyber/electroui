@@ -491,6 +491,20 @@ CREATE TABLE IF NOT EXISTS rooms (
     position INTEGER NOT NULL DEFAULT 0,
     UNIQUE (user_id, name)
 );
+CREATE TABLE IF NOT EXISTS apartment_layouts (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    room_count INTEGER NOT NULL CHECK (room_count IN (1, 2))
+);
+-- The bedroom and living-room circuits share a room in the one-room layout.
+-- Keep their socket and appliance identities so switching back restores their placement.
+CREATE VIEW IF NOT EXISTS layout_room_map AS
+    SELECT r.id AS circuit_id, COALESCE(living.id, r.id) AS room_id, r.user_id, r.sockets
+    FROM rooms r LEFT JOIN apartment_layouts l ON l.user_id=r.user_id
+    LEFT JOIN rooms living ON l.room_count=1 AND r.position=2
+        AND living.user_id=r.user_id AND living.position=1;
+CREATE VIEW IF NOT EXISTS layout_rooms AS
+    SELECT r.id, r.user_id, r.name, r.position, SUM(m.sockets) AS sockets
+    FROM layout_room_map m JOIN rooms r ON r.id=m.room_id GROUP BY r.id;
 CREATE TABLE IF NOT EXISTS catalog (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     type          TEXT    NOT NULL REFERENCES appliance_types(code),
@@ -723,11 +737,12 @@ def get_settings(c):
 def load_apartment(c, user_id):
     """SQL-дан пәтерді ООП объектілеріне жүктеу (Room + ElectricAppliance ұрпақтары)."""
     rooms = [Room(r['id'], r['name'], r['sockets'])
-             for r in rows(c, 'SELECT id, name, sockets FROM rooms WHERE user_id=? ORDER BY position, id', (user_id,))]
+             for r in rows(c, 'SELECT id, name, sockets FROM layout_rooms WHERE user_id=? ORDER BY position, id', (user_id,))]
     by_id = {r.id: r for r in rooms}
-    for row in rows(c, 'SELECT * FROM appliances WHERE user_id=? ORDER BY id', (user_id,)):
+    for row in rows(c, 'SELECT a.*, m.room_id AS layout_room_id FROM appliances a '
+                       'JOIN layout_room_map m ON m.circuit_id=a.room_id WHERE a.user_id=? ORDER BY a.id', (user_id,)):
         a = create_appliance(row)
-        room = by_id.get(row['room_id'])
+        room = by_id.get(row['layout_room_id'])
         if room:
             a.room = room
             room.appliances.append(a)
@@ -763,6 +778,7 @@ def apartment_state(c, user_id):
     total = apt.total_power()
     return {
         'settings': settings_json(get_settings(c)),
+        'roomCount': value(c, 'SELECT room_count FROM apartment_layouts WHERE user_id=?', (user_id,)) or 2,
         'rooms': rooms,
         'appliances': [a.to_json(apt.tariff) for a in apt.appliances()],
         'totals': {
@@ -787,7 +803,8 @@ def check_overload(c, user_id, room_id):
             f'{num(total - s["apartment_limit"])} Вт артық ({num(total / s["apartment_limit"] * 100, 0)}%). '
             f'Автомат ажырап кетуі мүмкін, кейбір құралдарды өшіріңіз.', 'WARNING'))
     room = one(c, 'SELECT r.name, COALESCE(SUM(a.power), 0) AS power FROM rooms r '
-                  'LEFT JOIN appliances a ON a.room_id = r.id AND a.plugged = 1 WHERE r.id=? GROUP BY r.id', (room_id,))
+                  'JOIN layout_room_map m ON m.room_id=r.id '
+                  'LEFT JOIN appliances a ON a.room_id=m.circuit_id AND a.plugged=1 WHERE r.id=? GROUP BY r.id', (room_id,))
     if room and room['power'] > s['room_limit']:
         out.append(notify(
             c, user_id, f'«{room["name"]}» желісі шамадан тыс жүктелді',
@@ -904,20 +921,28 @@ def appliance_fields(d):
 
 
 def own_room(c, user, room_id):
-    room = one(c, 'SELECT * FROM rooms WHERE id=? AND user_id=?', (as_int(room_id, 'Бөлме'), user['id']))
+    room = one(c, 'SELECT * FROM layout_rooms WHERE id=? AND user_id=?', (as_int(room_id, 'Бөлме'), user['id']))
     require(room, 'Бөлмені таңдаңыз.')
     return room
 
 
 def own_appliance(c, user, appliance_id):
-    a = one(c, 'SELECT * FROM appliances WHERE id=? AND user_id=?', (as_int(appliance_id), user['id']))
+    a = one(c, 'SELECT a.*, m.room_id AS layout_room_id FROM appliances a JOIN layout_room_map m ON m.circuit_id=a.room_id '
+               'WHERE a.id=? AND a.user_id=?', (as_int(appliance_id), user['id']))
     require(a, 'Құрал табылмады.')
     return a
 
 
-def free_sockets(c, room):
-    used = value(c, 'SELECT COUNT(*) FROM appliances WHERE room_id=? AND plugged=1', (room['id'],))
-    return room['sockets'] - used
+def choose_circuit(c, room_id, plugged, appliance=None):
+    circuit = value(c, '''
+        SELECT m.circuit_id FROM layout_room_map m
+        LEFT JOIN appliances a ON a.room_id=m.circuit_id AND a.plugged=1 AND a.id!=?
+        WHERE m.room_id=? GROUP BY m.circuit_id, m.room_id, m.sockets
+        HAVING ?=0 OR COUNT(a.id)<m.sockets
+        ORDER BY (m.circuit_id=?) DESC, (m.circuit_id=m.room_id) DESC, m.circuit_id LIMIT 1
+    ''', (appliance['id'] if appliance else -1, room_id, int(plugged), appliance['room_id'] if appliance else -1))
+    require(circuit is not None, 'Бұл бөлмеде бос розетка жоқ')
+    return circuit
 
 
 # ---------- Публикалық әрекеттер ----------
@@ -985,15 +1010,25 @@ def get_state(c, user, q):
     return state(c, user)
 
 
+def set_apartment_layout(c, user, data):
+    require(user['role'] == 'CLIENT', 'Пәтер түрін оның иесі таңдайды.', 403)
+    count = data.get('roomCount')
+    require(set(data) == {'roomCount'} and type(count) is int and count in (1, 2), '1 немесе 2 бөлмелі пәтерді таңдаңыз.')
+    c.execute('INSERT INTO apartment_layouts(user_id,room_count) VALUES (?,?) '
+              'ON CONFLICT(user_id) DO UPDATE SET room_count=excluded.room_count', (user['id'], count))
+    return {'state': state(c, user)}
+
+
 def get_apartments(c, user, q):
     # A resident's query never loads another household's records.
     scope = '' if user['role'] == 'ADMIN' else 'AND u.id = ?'
     args = () if user['role'] == 'ADMIN' else (user['id'],)
     records = rows(c, f"""
-        SELECT u.id, u.login, l.lat_cell, l.lon_cell,
+        SELECT u.id, u.login, l.lat_cell, l.lon_cell, COALESCE(layout.room_count,2) AS room_count,
                COALESCE(SUM(CASE WHEN a.plugged THEN a.power END), 0) AS power,
                COALESCE(SUM(CASE WHEN a.plugged THEN a.power * a.hours_per_day END), 0) / 1000.0 AS kwh
         FROM users u LEFT JOIN apartment_locations l ON l.user_id=u.id
+        LEFT JOIN apartment_layouts layout ON layout.user_id=u.id
         LEFT JOIN appliances a ON a.user_id=u.id
         WHERE (u.role='CLIENT' OR l.user_id IS NOT NULL OR a.id IS NOT NULL) {scope}
         GROUP BY u.id ORDER BY l.lat_cell IS NULL, u.id""", args)
@@ -1006,7 +1041,7 @@ def get_apartments(c, user, q):
         if user['login'].lower() in DEMO_LOGINS:
             label = sample_names.get(r['login'], label)
         items.append({'id': r['id'], 'label': label, 'point': point, 'power': r['power'],
-                      'kwhDay': round(r['kwh'], 3)})
+                      'kwhDay': round(r['kwh'], 3), 'roomCount': r['room_count']})
     return {'items': items}
 
 
@@ -1073,12 +1108,11 @@ def do_appliance_add(c, user, d):
         f = appliance_fields(d)
         catalog_id = None
     plugged = 1 if d.get('plugged') else 0
-    if plugged:
-        require(free_sockets(c, room) > 0, 'Бұл бөлмеде бос розетка жоқ')
+    circuit = choose_circuit(c, room['id'], plugged)
     cur = c.execute(
         'INSERT INTO appliances(user_id, room_id, catalog_id, type, name, brand, power, voltage, energy_class, weight, '
         'extra, hours_per_day, image, plugged) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        (user['id'], room['id'], catalog_id, f['type'], f['name'], f['brand'], f['power'], f['voltage'],
+        (user['id'], circuit, catalog_id, f['type'], f['name'], f['brand'], f['power'], f['voltage'],
          f['energy_class'], f['weight'], f['extra'], f['hours_per_day'], f['image'], plugged))
     event(c, user['id'], 'ADD', cur.lastrowid, f'{f["name"]} → {room["name"]}', f['power'])
     new = []
@@ -1090,13 +1124,12 @@ def do_appliance_add(c, user, d):
 
 def do_appliance_update(c, user, d):
     a = own_appliance(c, user, d.get('id'))
-    room = own_room(c, user, d.get('roomId', a['room_id']))
+    room = own_room(c, user, d.get('roomId', a['layout_room_id']))
     f = appliance_fields(d)
-    if a['plugged'] and room['id'] != a['room_id']:
-        require(free_sockets(c, room) > 0, 'Бұл бөлмеде бос розетка жоқ')
+    circuit = choose_circuit(c, room['id'], a['plugged'], a)
     c.execute('UPDATE appliances SET room_id=?, type=?, name=?, brand=?, power=?, voltage=?, energy_class=?, weight=?, '
               'extra=?, hours_per_day=?, image=? WHERE id=? AND user_id=?',
-              (room['id'], f['type'], f['name'], f['brand'], f['power'], f['voltage'], f['energy_class'], f['weight'],
+              (circuit, f['type'], f['name'], f['brand'], f['power'], f['voltage'], f['energy_class'], f['weight'],
                f['extra'], f['hours_per_day'], f['image'], a['id'], user['id']))
     event(c, user['id'], 'EDIT', a['id'], f'{f["name"]} өзгертілді', f['power'])
     new = check_overload(c, user['id'], room['id']) if a['plugged'] and f['power'] > a['power'] else []
@@ -1118,7 +1151,8 @@ def do_plug(c, user, d):
     new = []
     if want and not a.is_plugged_in():
         a.room.plug(a)                       # бос розетка жоқ болса -> Fail
-        c.execute('UPDATE appliances SET plugged=1 WHERE id=? AND user_id=?', (a.id, user['id']))
+        circuit = choose_circuit(c, a.room.id, True, own_appliance(c, user, a.id))
+        c.execute('UPDATE appliances SET plugged=1, room_id=? WHERE id=? AND user_id=?', (circuit, a.id, user['id']))
         event(c, user['id'], 'PLUG', a.id, f'{a.name} розеткаға қосылды ({a.room.name})', a.power)
         new = check_overload(c, user['id'], a.room.id)
     elif not want and a.is_plugged_in():
@@ -1220,7 +1254,7 @@ def get_search(c, user, q):
         where.append('a.type = ?')
         params.append(type_code)
     if q.get('room'):
-        where.append('a.room_id = ?')
+        where.append('r.id = ?')
         params.append(as_int(q['room'], 'Бөлме'))
     if q.get('plugged') == '1':
         where.append('a.plugged = 1')
@@ -1231,7 +1265,8 @@ def get_search(c, user, q):
         params += [like, like]
     sql = ('SELECT a.*, r.name AS room_name, t.name_kz, t.category_kz\n'
            'FROM appliances a\n'
-           'JOIN rooms r ON r.id = a.room_id\n'
+           'JOIN layout_room_map m ON m.circuit_id = a.room_id\n'
+           'JOIN rooms r ON r.id = m.room_id\n'
            'JOIN appliance_types t ON t.code = a.type\n'
            'WHERE ' + '\n  AND '.join(where) + '\n'
            'ORDER BY a.power DESC;')
@@ -1422,7 +1457,8 @@ ORDER BY жалпы_қуат_Вт DESC"""),
        CASE a.plugged WHEN 1 THEN 'қосулы' ELSE 'өшірулі' END AS күйі
 FROM appliances a
 JOIN users u ON u.id = a.user_id
-JOIN rooms r ON r.id = a.room_id
+JOIN layout_room_map m ON m.circuit_id=a.room_id
+JOIN rooms r ON r.id=m.room_id
 ORDER BY a.power DESC
 LIMIT 10"""),
     ('Клиенттер қосулы қуат бойынша (LEFT JOIN + COALESCE)',
@@ -1439,9 +1475,10 @@ ORDER BY қосулы_қуат_Вт DESC"""),
     ('Құралы 3-тен көп бөлмелер (GROUP BY + HAVING)',
      """SELECT u.login, r.name AS бөлме, r.sockets AS розетка,
        COUNT(a.id) AS құрал_саны, SUM(a.power) AS жалпы_қуат_Вт
-FROM rooms r
+FROM layout_rooms r
 JOIN users u ON u.id = r.user_id
-JOIN appliances a ON a.room_id = r.id
+JOIN layout_room_map m ON m.room_id=r.id
+JOIN appliances a ON a.room_id=m.circuit_id
 GROUP BY r.id
 HAVING COUNT(a.id) >= 3
 ORDER BY жалпы_қуат_Вт DESC"""),
@@ -1516,6 +1553,7 @@ GET_ACTIONS = {
     'admin/settings': (get_admin_settings, 'admin'), 'admin/broadcasts': (get_admin_broadcasts, 'admin'),
 }
 POST_ACTIONS = {
+    'apartment-layout': (set_apartment_layout, 'user'),
     'apartment-location': (set_apartment_location, 'user'),
     'apartment-file-remove': (remove_file, 'user'),
     'register': (do_register, 'public'), 'login': (do_login, 'public'),

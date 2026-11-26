@@ -7,7 +7,7 @@
   const markerHTML = '<span class="atlas-building" aria-hidden="true"><i></i><b></b><em></em></span>';
   const labelNode = (text) => { const span = document.createElement('span'); span.textContent = text; return span; };
 
-  function open(root, {user, api, pageThree, setState, ownState, fW, fKwh, ic}) {
+  function open(root, {user, api, pageThree, setState, ownState, fW, fKwh, ic, mountLayoutPicker}) {
     const operator = user.role === 'ADMIN';
     root.innerHTML = `
       <div class="atlas-layout">
@@ -31,6 +31,7 @@
           <header class="atlas-head"><h2>${operator ? 'Пәтерлер' : 'Менің пәтерім'} <small data-count></small></h2>
             <button class="icon-btn" data-refresh title="Деректерді жаңарту" aria-label="Деректерді жаңарту">${ic('reset')}</button></header>
           <p class="atlas-caption">${operator ? (user.demo ? 'Демо кабинетте ойдан алынған пәтерлер көрсетілген.' : 'Орны көрсетілмеген пәтерлер де тізімге кіреді.') : 'Құралдар мен бөлмелер бойынша тұтынуды 3D үлгіде көріңіз.'}</p>
+          ${operator ? '' : '<div data-layout-picker></div>'}
           <div class="atlas-list" data-list aria-live="polite"></div>
           ${operator ? '' : '<div data-file-card></div>'}
         </section>
@@ -65,6 +66,7 @@
     let geoVersion = 0, detailVersion = 0, listVersion = 0;
     let devicePoint = null, deviceMarker = null;
     const fileCard = !operator && ApartmentFile.mount(find('[data-file-card]'), user, api, ic);
+    const syncLayout = mountLayoutPicker(find('[data-layout-picker]'));
     function message(text) { find('[data-msg]').textContent = text; }
 
     if (window.L) {
@@ -126,7 +128,7 @@
         const button = document.createElement('button'); button.type = 'button';
         button.className = 'atlas-flat'; button.dataset.apartment = item.id;
         button.setAttribute('aria-pressed', String(selected === item.id));
-        button.innerHTML = `<span class="atlas-flat-top"><b></b><small>${item.point ? 'Картада' : 'Орны белгіленбеген'}</small></span>
+        button.innerHTML = `<span class="atlas-flat-top"><b></b><small>${item.roomCount === 1 ? 1 : 2} бөлмелі · ${item.point ? 'Картада' : 'Орны белгіленбеген'}</small></span>
           <span class="atlas-meters"><span>Қосулы қуат<strong>${fW(item.power, 0)}</strong></span>
           <span>Есептік тәуліктік шығын<strong>${fKwh(item.kwhDay)}</strong></span></span>
           <span class="atlas-open">${ic('cube')} 3D үлгісін ашу →</span>`;
@@ -149,11 +151,16 @@
         detail.scrollIntoView({block:'start'});
       }
       try {
-        const snapshot = await api(operator ? `apartment-view?id=${item.id}` : 'state');
+        const requestedState = ownState();
+        let snapshot = await api(operator ? `apartment-view?id=${item.id}` : 'state');
         if (!alive || revision !== detailVersion) return;
-        if (!operator) setState(snapshot);
+        if (!operator) {
+          if (ownState() === requestedState) setState(snapshot);
+          else snapshot = ownState();
+          syncLayout?.();
+        }
         scene = pageThree(host, operator ? snapshot : null);
-        Object.assign(item, {power:snapshot.totals.power, kwhDay:snapshot.totals.kwhDay});
+        Object.assign(item, {power:snapshot.totals.power, kwhDay:snapshot.totals.kwhDay, roomCount:snapshot.roomCount});
         drawList();
       } catch (e) { if (alive && revision === detailVersion) host.textContent = e.message; }
     }
@@ -316,9 +323,10 @@
     return {
       onState() {
         if (operator || !alive) return;
+        syncLayout?.();
         scene?.onState();
         const mine = items.find((i) => i.id === user.id);
-        if (mine) { const totals = ownState().totals; mine.power = totals.power; mine.kwhDay = totals.kwhDay; drawList(); }
+        if (mine) { const st = ownState(); Object.assign(mine, {power:st.totals.power, kwhDay:st.totals.kwhDay, roomCount:st.roomCount}); drawList(); }
       },
       destroy() { alive = false; if (fileCard) fileCard.destroy(); closeScene(); city?.destroy(); if (map) map.remove(); },
     };

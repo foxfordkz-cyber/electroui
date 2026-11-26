@@ -122,6 +122,47 @@ class ApartmentMapTest(unittest.TestCase):
         self.assertEqual([second_uid], [i['id'] for i in demo.request('apartments')['items']])
         self.assertEqual(2, len(staff.request('apartments')['items']))
 
+    def test_layout_preserves_appliances_sockets_and_owner_scope(self):
+        owner, neighbor, staff = (Session(self.port) for _ in range(3))
+        owner.request('apartment-layout', {'roomCount': 1}, 401)
+        uid = owner.register('layoutowner')
+        neighbor.register('layoutneighbor')
+        staff.request('login', {'login': server.SECTOR_LOGIN, 'password': 'PrivateTest123'})
+        start = owner.request('state')
+        self.assertEqual(2, start['roomCount'])
+        _, living, bedroom, _ = start['rooms']
+        template = owner.request('catalog')['items'][0]['id']
+        payload = {'catalogId': template, 'roomId': bedroom['id'], 'plugged': True}
+        device = owner.request('appliance_add', payload)['id']
+        owner.request('apartment-location', {'latCell':5115, 'lonCell':7143})
+        for bad in (0, 3, True, '1'):
+            owner.request('apartment-layout', {'roomCount':bad}, 400)
+        neighbor.request('apartment-layout', {'roomCount':1, 'id':uid}, 400)
+        staff.request('apartment-layout', {'roomCount':1}, 403)
+        merged = owner.request('apartment-layout', {'roomCount':1})['state']
+        self.assertEqual(['Ас үй', 'Қонақ бөлме', 'Жуынатын бөлме'], [r['name'] for r in merged['rooms']])
+        self.assertEqual(living['sockets'] + bedroom['sockets'], merged['rooms'][1]['sockets'])
+        self.assertEqual(living['id'], merged['appliances'][0]['roomId'])
+        self.assertEqual([device], [a['id'] for a in owner.request('search?room='+str(living['id']))['items']])
+        owner.request('appliance_add', payload, 400)
+        payload['roomId'] = living['id']
+        for _ in range(merged['rooms'][1]['sockets'] - 1):
+            owner.request('appliance_add', payload)
+        owner.request('appliance_add', payload, 400)
+        owner.request('plug', {'id':device, 'plugged':False})
+        owner.request('plug', {'id':device, 'plugged':True})
+        totals = owner.request('state')['totals']
+        server.init_db()
+        self.assertEqual(1, staff.request('apartment-view?id='+str(uid))['roomCount'])
+        self.assertEqual(2, neighbor.request('state')['roomCount'])
+        restored = owner.request('apartment-layout', {'roomCount':2})['state']
+        self.assertEqual([r['id'] for r in start['rooms']], [r['id'] for r in restored['rooms']])
+        self.assertEqual(bedroom['id'], next(a['roomId'] for a in restored['appliances'] if a['id']==device))
+        self.assertTrue(all(r['free'] >= 0 for r in restored['rooms']))
+        for field in ('power', 'kwhDay', 'count', 'plugged'):
+            self.assertEqual(totals[field], restored['totals'][field])
+        self.assertEqual([51.15, 71.43], owner.request('apartments')['items'][0]['point'])
+
     def test_private_file_replacement_and_scope(self):
         owner, neighbor, staff, shared = (Session(self.port) for _ in range(4))
         owner.file('new', expected=401)

@@ -553,7 +553,6 @@
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = T.PCFSoftShadowMap;
     const canvas = renderer.domElement;
-    canvas.setAttribute('aria-label', '3D пәтер: құралды таңдау үшін басыңыз');
     const scene = new T.Scene();
     const camera = new T.PerspectiveCamera(42, 1, 0.1, 200);
     const tip = document.createElement('div');
@@ -580,14 +579,16 @@
     const BLACK = new T.Color(0x000000);
     const RED = new T.Color(0xef4444);
 
-    function roomRect(i) {
-      const xs = [[-HW, 0], [0, HW], [-HW, 0], [0, HW]][i % 4];
-      const zs = [[-HD, 0], [-HD, 0], [0, HD], [0, HD]][i % 4];
-      return { x0: xs[0], x1: xs[1], z0: zs[0], z1: zs[1], cx: (xs[0] + xs[1]) / 2, cz: (zs[0] + zs[1]) / 2, sx: Math.sign((xs[0] + xs[1]) / 2), sz: Math.sign((zs[0] + zs[1]) / 2) };
+    function roomRect(i, single) {
+      const onLeft = i === 0 || i === 2;
+      const x0 = onLeft ? -HW : 0, x1 = onLeft ? 0 : HW;
+      const z0 = i < 2 ? -HD : 0, z1 = i < 2 && !(single && i === 1) ? 0 : HD;
+      const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+      return {x0, x1, z0, z1, cx, cz, sx:Math.sign(cx), sz:Math.sign(cz) || -1};
     }
     function slots(r) {
       const out = [];
-      const nx = 4; const nz = 3;
+      const nx = 4; const nz = 3 * (r.z1 - r.z0) / HD;
       for (let i = 0; i < nx; i++) {
         for (let j = 0; j < nz; j++) {
           out.push({ x: r.x0 + 1.05 + (i * (r.x1 - r.x0 - 2.1)) / (nx - 1), z: r.z0 + 1.0 + (j * (r.z1 - r.z0 - 2.0)) / (nz - 1) });
@@ -598,7 +599,7 @@
     }
 
     /* --- Тұрақты орта --- */
-    function buildEnv() {
+    function buildEnv(single) {
       env = new T.Group();
       scene.add(env);
       glow = glowTexture();
@@ -627,7 +628,8 @@
       };
       wall(0, -HD, HW * 2, 0.12); wall(0, HD, HW * 2, 0.12); wall(-HW, 0, 0.12, HD * 2); wall(HW, 0, 0.12, HD * 2);
       wall(0, -(HD + GAP) / 2, 0.12, HD - GAP); wall(0, (HD + GAP) / 2, 0.12, HD - GAP);
-      wall(-(HW + GAP) / 2, 0, HW - GAP, 0.12); wall((HW + GAP) / 2, 0, HW - GAP, 0.12);
+      wall(-(HW + GAP) / 2, 0, HW - GAP, 0.12);
+      if (!single) wall((HW + GAP) / 2, 0, HW - GAP, 0.12);
 
       // электр қалқаны (орталықта)
       const panel = new T.Group();
@@ -669,7 +671,7 @@
       const dark = isDark();
       const FLOORS = [['tile', dark ? '#3a4566' : '#d5dae4'], ['wood', dark ? '#5e4633' : '#c8a27a'], ['wood', dark ? '#4f3f55' : '#d9b99b'], ['tile', dark ? '#2e4b64' : '#c4dceb']];
       rooms = st.rooms.slice(0, 4).map((r, i) => {
-        const rect = roomRect(i);
+        const rect = roomRect(i, st.roomCount === 1);
         const n = r.name.toLowerCase();
         const kind = n.includes('ас үй') ? 0 : n.includes('қонақ') ? 1 : n.includes('жатын') ? 2 : n.includes('жуынатын') ? 3 : i;
         const [tk, col] = FLOORS[kind];
@@ -779,7 +781,8 @@
     function rebuild(st) {
       if (env) { scene.remove(env); disposeObject(env); }
       if (glow) glow.dispose();
-      buildEnv();
+      canvas.setAttribute('aria-label', `${st.roomCount || 2} бөлмелі 3D пәтер · құралды таңдау үшін басыңыз`);
+      buildEnv(st.roomCount === 1);
       buildContent(st);
       sig = structSig(st);
       applyStates(st);

@@ -1135,13 +1135,40 @@ ${heat ? `    @Override
   }
 
   /* ======================= БЕТ: МЕНІҢ ПӘТЕРІМ (2-қадам) ======================= */
+  function mountLayoutPicker(host) {
+    if (!host || S.user.role !== 'CLIENT') return;
+    host.classList.add('layout-picker');
+    host.innerHTML = `<strong>Пәтер түрі</strong><div class="seg" role="group" aria-label="Пәтер түрі">
+      <button type="button" data-room-count="1">1 бөлмелі</button>
+      <button type="button" data-room-count="2">2 бөлмелі</button></div>`;
+    const buttons = $$('button', host);
+    const sync = () => buttons.forEach((b) => {
+      const selected = Number(b.dataset.roomCount) === S.state.roomCount;
+      b.setAttribute('aria-pressed', String(selected)); b.classList.toggle('active', selected);
+    });
+    host.onclick = async (event) => {
+      const button = event.target.closest('[data-room-count]');
+      if (!button || button.disabled || button.getAttribute('aria-pressed') === 'true') return;
+      const owner = S.user;
+      buttons.forEach((b) => { b.disabled = true; });
+      try {
+        const result = await api('apartment-layout', {roomCount:Number(button.dataset.roomCount)});
+        if (S.user?.id === owner.id && S.user.demo === owner.demo) applyResult(result);
+      } catch (e) { if (host.isConnected) toast('Пәтер түрі сақталмады', e.message, 'error'); }
+      finally { buttons.forEach((b) => { b.disabled = false; }); }
+    };
+    sync();
+    return sync;
+  }
+
   function pageApartment(root) {
     let filter = store.get('aptFilter', 'all'); let roomFilter = 'all'; let q = '';
     root.innerHTML = `
+      ${S.user.role === 'CLIENT' ? '<section class="card" data-layout-picker></section>' : ''}
       <div class="card"><div class="row between">
         <div class="row">
           <div class="seg" data-filter>${[['all', 'Барлығы'], ['on', 'Қосулы'], ['off', 'Өшірулі']].map(([k, l]) => `<button type="button" data-f="${k}" class="${k === filter ? 'active' : ''}">${l}</button>`).join('')}</div>
-          <select data-room style="width:auto;height:38px"><option value="all">Барлық бөлмелер</option>${S.state.rooms.map((r) => `<option value="${r.id}">${esc(r.name)}</option>`).join('')}</select>
+          <select data-room aria-label="Бөлме" style="width:auto;height:38px"></select>
           <input data-q type="search" placeholder="Атауы бойынша сүзу…" style="width:200px;height:38px">
         </div>
         <div class="row"><button class="btn" data-unplug>${ic('power')}Барлығын өшіру</button><button class="btn btn-primary" data-add>${ic('plus')}Құрал қосу</button></div>
@@ -1149,6 +1176,14 @@ ${heat ? `    @Override
       <div data-file-card${S.user.role === 'CLIENT' ? '' : ' hidden'}></div>
       <div data-rooms class="stack" style="gap:26px"></div>`;
     const fileCard = S.user.role === 'CLIENT' && ApartmentFile.mount($('[data-file-card]', root), S.user, api, ic);
+    const syncLayout = mountLayoutPicker($('[data-layout-picker]', root));
+    function syncRooms() {
+      if (!S.state.rooms.some((r) => String(r.id) === roomFilter)) roomFilter = 'all';
+      const select = $('[data-room]', root);
+      select.replaceChildren(new Option('Барлық бөлмелер','all'), ...S.state.rooms.map((r) => new Option(r.name,r.id)));
+      select.value = roomFilter;
+    }
+    syncRooms();
     $$('[data-f]', root).forEach((b) => b.addEventListener('click', () => {
       filter = b.dataset.f; store.set('aptFilter', filter);
       $$('[data-f]', root).forEach((x) => x.classList.toggle('active', x === b)); render();
@@ -1226,7 +1261,7 @@ ${heat ? `    @Override
         card.append(m);
       });
     };
-    const signature = () => S.state.appliances.map((a) => `${a.id}:${a.roomId}:${a.name}:${a.power}:${a.image}:${a.energyClass}:${a.hoursPerDay}:${a.extra}`).join('|');
+    const signature = () => S.state.roomCount + '|' + S.state.appliances.map((a) => `${a.id}:${a.roomId}:${a.name}:${a.power}:${a.image}:${a.energyClass}:${a.hoursPerDay}:${a.extra}`).join('|');
     let sig = signature();
     const patch = () => {
       if (filter !== 'all') return render();
@@ -1244,7 +1279,7 @@ ${heat ? `    @Override
       });
     };
     render();
-    return { onState() { const s = signature(); if (s !== sig) { sig = s; render(); } else patch(); },
+    return { onState() { syncLayout?.(); const s = signature(); if (s !== sig) { sig = s; syncRooms(); render(); } else patch(); },
       destroy() { if (fileCard) fileCard.destroy(); } };
   }
 
@@ -1511,7 +1546,7 @@ ${heat ? `    @Override
 
   /* ======================= БЕТ: 3D ПӘТЕР ======================= */
   function pageMap(root) {
-    return window.ApartmentAtlas.open(root, { user: S.user, api, pageThree, setState, ownState: () => S.state, fW, fKwh, ic });
+    return window.ApartmentAtlas.open(root, { user: S.user, api, pageThree, setState, ownState: () => S.state, fW, fKwh, ic, mountLayoutPicker });
   }
 
   function pageThree(root, inspection = null) {
@@ -1519,6 +1554,7 @@ ${heat ? `    @Override
       ? { state: inspection, apt: new E.Apartment(inspection.rooms, inspection.appliances, inspection.settings) } : S;
     root.innerHTML = `
       <div class="row between"><a class="btn btn-sm" href="#/map" data-back-map>${ic('building')}Картаға оралу</a></div>
+      ${!inspection && !root.closest('[data-atlas-model]') && S.user.role === 'CLIENT' ? '<section class="card" data-layout-picker></section>' : ''}
       <div class="stage" data-stage>
         <div class="hud"><div class="glass"><div class="muted tiny">Жалпы қуат · <span data-hud-count></span></div><div class="big" data-hud-power>—</div><div class="load"><i data-hud-load></i></div><div class="tiny muted" data-hud-sub style="margin-top:4px"></div></div></div>
         <div class="hud-controls">
@@ -1533,6 +1569,7 @@ ${heat ? `    @Override
         <div class="grid g4" data-rooms></div>
         ${inspection ? '' : '<button class="btn btn-sm" data-add-in-model style="margin-top:14px">Құрал қосу</button>'}</div>`;
     const addInModel = $('[data-add-in-model]', root);
+    const syncLayout = mountLayoutPicker($('[data-layout-picker]', root));
     if (addInModel) addInModel.onclick = () => openAddModal();
     if (root.closest('[data-atlas-model]')) $('[data-back-map]', root).parentElement.remove();
     const stage = $('[data-stage]', root);
@@ -1546,7 +1583,10 @@ ${heat ? `    @Override
       $('[data-hud-sub]', root).textContent = `${fmt(t.loadPct, 0)}% · шегі ${fW(set.apartmentLimit, 0)} · ${fKwh(t.kwhDay)}/тәул.`;
     };
     const roomsList = () => {
-      $('[data-rooms]', root).innerHTML = view.apt.rooms.map((r) => {
+      const roomGrid = $('[data-rooms]', root);
+      roomGrid.classList.toggle('g3', view.state.roomCount === 1);
+      roomGrid.classList.toggle('g4', view.state.roomCount !== 1);
+      roomGrid.innerHTML = view.apt.rooms.map((r) => {
         const rs = view.state.rooms.find((x) => x.id === r.id);
         return `<div class="stack" style="gap:8px"><div class="row" style="gap:8px">${ic(roomIcon(r.name)).replace('<svg ', '<svg style="width:18px;height:18px;color:var(--accent)" ')}<b>${esc(r.name)}</b>${socketsHTML(r.usedSockets(), r.sockets)}</div>
           <span class="small ${rs.overload ? '' : 'muted'}" style="${rs.overload ? 'color:var(--danger);font-weight:700' : ''}">${fW(r.power(), 0)} / ${fW(view.state.settings.roomLimit, 0)}</span>
@@ -1590,6 +1630,7 @@ ${heat ? `    @Override
       stage.append(fb);
       $$('.hud-controls, .hud-help', stage).forEach((n) => n.remove());
       const renderPlan = () => {
+        $('[data-plan]', fb).classList.toggle('one-room', view.state.roomCount === 1);
         $('[data-plan]', fb).innerHTML = view.apt.rooms.map((r) => `<div class="rm"><h4>${esc(r.name)} · ${fW(r.power(), 0)}</h4><div class="chips">${r.appliances.map((a) => `<button class="chip ${a.pluggedIn ? 'active' : ''}" data-sel2="${a.id}">${ic(a.pluggedIn ? 'plug' : 'power')}${esc(a.name)}</button>`).join('')}</div></div>`).join('');
         $$('[data-sel2]', fb).forEach((b) => b.addEventListener('click', () => showInfo(+b.dataset.sel2)));
       };
@@ -1611,7 +1652,7 @@ ${heat ? `    @Override
     const pre = !inspection && +store.get('select3d', '0');
     if (pre && scene) { store.set('select3d', '0'); setTimeout(() => scene && scene.select(pre), 600); }
     return {
-      onState() { update(); if (planRender) planRender(); },
+      onState() { syncLayout?.(); update(); if (planRender) planRender(); },
       destroy() { if (scene) scene.dispose(); scene = null; },
     };
   }
