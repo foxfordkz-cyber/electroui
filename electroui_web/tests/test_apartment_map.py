@@ -163,6 +163,60 @@ class ApartmentMapTest(unittest.TestCase):
             self.assertEqual(totals[field], restored['totals'][field])
         self.assertEqual([51.15, 71.43], owner.request('apartments')['items'][0]['point'])
 
+    def test_studio_groups_kitchen_and_lounge_and_restores_each_circuit(self):
+        owner, staff = Session(self.port), Session(self.port)
+        uid = owner.register('studioflat')
+        staff.request('login', {'login': server.SECTOR_LOGIN, 'password': 'PrivateTest123'})
+        kitchen, living, bedroom, bath = owner.request('state')['rooms']
+        studio = owner.request('apartment-layout', {'layout':'studio'})['state']
+        shared, separate = studio['rooms']
+        self.assertEqual((living['id'], 'Ас үй мен қонақ бөлме', 12), (shared['id'], shared['name'], shared['sockets']))
+        self.assertEqual(bath['id'], separate['id'])
+        catalog = {t['type']: t['id'] for t in owner.request('catalog')['items']}
+        def add(kind, room):
+            return owner.request('appliance_add', {'catalogId':catalog[kind], 'roomId':room['id'], 'plugged':True})['id']
+        kettle, tv, washer = add('KETTLE', shared), add('TV', shared), add('WASHER', separate)
+        before = owner.request('state')
+        self.assertEqual({kettle:0, tv:1, washer:3}, {a['id']:a['circuitPosition'] for a in before['appliances']})
+        self.assertEqual({kettle,tv}, {a['id'] for a in owner.request('search?room='+str(shared['id']))['items']})
+        for bad in ({'layout':[]}, {'layout':'four'}, {'layout':'studio', 'id':uid}):
+            owner.request('apartment-layout', bad, 400)
+        staff.request('apartment-layout', {'layout':'studio'}, 403)
+        server.init_db()
+        self.assertEqual('studio', staff.request('apartments')['items'][0]['layout'])
+        self.assertEqual('studio', staff.request('apartment-view?id='+str(uid))['layout'])
+        one = owner.request('apartment-layout', {'layout':'one'})['state']
+        two = owner.request('apartment-layout', {'layout':'two'})['state']
+        for st in (one, two):
+            self.assertEqual({kettle:kitchen['id'], tv:living['id'], washer:bath['id']},
+                             {a['id']:a['roomId'] for a in st['appliances']})
+            for field in ('count', 'power', 'kwhDay', 'plugged'):
+                self.assertEqual(before['totals'][field], st['totals'][field])
+        self.assertEqual([kitchen['id'], living['id'], bedroom['id'], bath['id']], [r['id'] for r in two['rooms']])
+
+    def test_existing_one_room_layout_survives_upgrade(self):
+        owner = Session(self.port)
+        uid = owner.register('existingflat')
+        start = owner.request('state')
+        template = owner.request('catalog')['items'][0]['id']
+        device = owner.request('appliance_add', {'catalogId':template, 'roomId':start['rooms'][2]['id']})['id']
+        with server.db() as c:
+            c.executescript('''
+                DROP VIEW layout_rooms;
+                DROP VIEW layout_room_map;
+                DROP TABLE apartment_layouts;
+                CREATE TABLE apartment_layouts(user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                    room_count INTEGER NOT NULL CHECK(room_count IN (1,2)));
+                CREATE VIEW layout_room_map AS SELECT room_count FROM apartment_layouts;
+                CREATE VIEW layout_rooms AS SELECT * FROM layout_room_map;
+            ''')
+            c.execute('INSERT INTO apartment_layouts VALUES (?,1)', (uid,))
+        server.init_db()
+        server.init_db()
+        migrated = owner.request('state')
+        self.assertEqual(('one', 3), (migrated['layout'], len(migrated['rooms'])))
+        self.assertEqual((device, start['rooms'][1]['id']), (migrated['appliances'][0]['id'], migrated['appliances'][0]['roomId']))
+
     def test_private_file_replacement_and_scope(self):
         owner, neighbor, staff, shared = (Session(self.port) for _ in range(4))
         owner.file('new', expected=401)

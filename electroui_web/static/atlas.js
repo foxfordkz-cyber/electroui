@@ -128,7 +128,7 @@
         const button = document.createElement('button'); button.type = 'button';
         button.className = 'atlas-flat'; button.dataset.apartment = item.id;
         button.setAttribute('aria-pressed', String(selected === item.id));
-        button.innerHTML = `<span class="atlas-flat-top"><b></b><small>${item.roomCount === 1 ? 1 : 2} бөлмелі · ${item.point ? 'Картада' : 'Орны белгіленбеген'}</small></span>
+        button.innerHTML = `<span class="atlas-flat-top"><b></b><small>${window.Electro.layoutName(item.layout)} · ${item.point ? 'Картада' : 'Орны белгіленбеген'}</small></span>
           <span class="atlas-meters"><span>Қосулы қуат<strong>${fW(item.power, 0)}</strong></span>
           <span>Есептік тәуліктік шығын<strong>${fKwh(item.kwhDay)}</strong></span></span>
           <span class="atlas-open">${ic('cube')} 3D үлгісін ашу →</span>`;
@@ -160,7 +160,7 @@
           syncLayout?.();
         }
         scene = pageThree(host, operator ? snapshot : null);
-        Object.assign(item, {power:snapshot.totals.power, kwhDay:snapshot.totals.kwhDay, roomCount:snapshot.roomCount});
+        Object.assign(item, {power:snapshot.totals.power, kwhDay:snapshot.totals.kwhDay, layout:snapshot.layout});
         drawList();
       } catch (e) { if (alive && revision === detailVersion) host.textContent = e.message; }
     }
@@ -326,7 +326,7 @@
         syncLayout?.();
         scene?.onState();
         const mine = items.find((i) => i.id === user.id);
-        if (mine) { const st = ownState(); Object.assign(mine, {power:st.totals.power, kwhDay:st.totals.kwhDay, roomCount:st.roomCount}); drawList(); }
+        if (mine) { const st = ownState(); Object.assign(mine, {power:st.totals.power, kwhDay:st.totals.kwhDay, layout:st.layout}); drawList(); }
       },
       destroy() { alive = false; if (fileCard) fileCard.destroy(); closeScene(); city?.destroy(); if (map) map.remove(); },
     };

@@ -294,6 +294,7 @@ class Apartment {
 }
 
 window.Electro = {
+  layoutName: (layout) => ({ studio: 'Студия', one: '1 бөлмелі', two: '2 бөлмелі' }[layout] || '2 бөлмелі'),
   ENERGY_CLASSES, fmtNum, Pluggable, Heating, implementsInterface,
   ElectricAppliance, KitchenAppliance, HouseholdAppliance, MultimediaAppliance, ClimateAppliance, LightingAppliance,
   Kettle, Refrigerator, Microwave, WashingMachine, VacuumCleaner, Iron, Television, Computer,

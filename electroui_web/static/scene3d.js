@@ -287,6 +287,84 @@
     return 0.87;
   }
 
+  function furniture(kind, rect, studio, parent) {
+    const occupied = [];
+    const place = (name, x, z, width, depth) => {
+      const group = new T.Group();
+      group.name = name;
+      group.position.set(x, 0, z);
+      parent.add(group);
+      occupied.push({x, z, halfWidth:width / 2, halfDepth:depth / 2});
+      return group;
+    };
+    const box = (g, mat, w, h, d, x, y, z) => add(g, new T.BoxGeometry(w, h, d), mat, x, y, z);
+    const wood = M(0xad7c52, {r:0.7});
+    if (kind === 'kitchen') {
+      const cabinets = place('kitchen-cabinets', rect.x0 + 3.1, rect.z0 + 0.72, 4.9, 1.15);
+      const sage = M(0x688d7f), brass = M(0xc6ab76, {m:0.65, r:0.32});
+      box(cabinets, wood, 4.78, 0.88, 1.0, 0, 0.50, 0);
+      for (let i = 0; i < 4; i++) {
+        const x = (i - 1.5) * 1.18;
+        box(cabinets, sage, 1.14, 0.79, 0.07, x, 0.52, 0.52);
+        box(cabinets, brass, 0.27, 0.045, 0.085, x + 0.25, 0.78, 0.58);
+      }
+      box(cabinets, M(0xe6d6b9), 4.92, 0.12, 1.14, 0, 1.0, 0);
+      const steel = M(0xb0c4c6, {m:0.64, r:0.28});
+      box(cabinets, steel, 1.12, 0.05, 0.75, -0.56, 1.08, 0.04);
+      box(cabinets, M(0x425960, {m:0.38}), 0.93, 0.025, 0.56, -0.56, 1.11, 0.06);
+      const spout = new T.CatmullRomCurve3([[-0.56,1.08,-0.39],[-0.56,1.52,-0.38],
+        [-0.56,1.57,-0.15],[-0.56,1.40,-0.08]].map(([x,y,z]) => new T.Vector3(x,y,z)));
+      add(cabinets, new T.TubeGeometry(spout, 12, 0.04, 7, false), steel);
+      box(cabinets, wood, 0.73, 0.055, 0.45, 1.48, 1.09, 0.18);
+      if (studio) {
+        const dining = place('studio-dining-table', rect.x1 - 1.65, rect.cz, 1.6, 2.15);
+        add(dining, new T.CylinderGeometry(0.77, 0.77, 0.11, 24), wood, 0, 0.91, 0);
+        const frame = M(0x49463e);
+        add(dining, new T.CylinderGeometry(0.12, 0.23, 0.86, 12), frame, 0, 0.43, 0);
+        [-0.87, 0.87].forEach((z) => {
+          add(dining, new T.CylinderGeometry(0.32, 0.32, 0.13, 12), sage, 0, 0.51, z);
+          add(dining, new T.CylinderGeometry(0.11, 0.20, 0.45, 10), frame, 0, 0.23, z);
+        });
+      }
+    } else if (kind === 'living') {
+      const sofa = place('living-sofa', rect.x1 - 0.99, rect.cz, 1.63, 3.60);
+      const fabric = M(0x367c78, {r:0.95}), cushion = M(0x5d9c90, {r:0.98});
+      box(sofa, wood, 1.24, 0.19, 3.25, 0, 0.16, 0);
+      box(sofa, fabric, 1.55, 0.35, 3.50, 0, 0.40, 0);
+      box(sofa, fabric, 0.27, 0.84, 3.48, 0.63, 0.79, 0);
+      [-1, 0, 1].forEach((i) => {
+        box(sofa, cushion, 1.12, 0.25, 0.98, -0.10, 0.66, i);
+        box(sofa, cushion, 0.18, 0.50, 0.98, 0.40, 0.94, i).rotation.z = -0.09;
+      });
+      [-1.64, 1.64].forEach((z) => box(sofa, fabric, 1.55, 0.46, 0.27, 0, 0.66, z));
+      const pillow = box(sofa, M(0xd9ab63), 0.27, 0.55, 0.55, 0.14, 0.94, -1.16);
+      pillow.rotation.x = 0.18;
+      const table = place('coffee-table', rect.x1 - 3.1, rect.cz, 1.48, 1.48);
+      box(table, M(0xc08d75, {r:1}), 2.55, 0.025, 3.8, 0.27, 0.018, 0);
+      add(table, new T.CylinderGeometry(0.73, 0.73, 0.12, 24), wood, 0, 0.62, 0);
+      add(table, new T.CylinderGeometry(0.28, 0.39, 0.55, 16), M(0x5c5145), 0, 0.32, 0);
+      box(table, M(0xf1dcc6), 0.37, 0.07, 0.48, -0.2, 0.72, 0.10).rotation.y = 0.20;
+    } else if (kind === 'bedroom') {
+      const bed = place('bed', rect.x0 + 2.05, rect.z1 - 1.91, 2.5, 3.48);
+      box(bed, wood, 2.50, 0.35, 3.46, 0, 0.24, 0);
+      box(bed, wood, 2.5, 0.86, 0.16, 0, 0.62, 1.65);
+      box(bed, M(0xf1e2cf), 2.39, 0.29, 3.27, 0, 0.55, 0);
+      box(bed, M(0x8093b1), 2.42, 0.13, 2.13, 0, 0.73, -0.5);
+      const linen = M(0xffefdf);
+      [-0.57, 0.57].forEach((x) => box(bed, linen, 0.94, 0.19, 0.69, x, 0.77, 1.02));
+    } else {
+      const bath = place('bathtub', rect.x0 + 2.06, rect.z1 - 1.15, 2.98, 1.35);
+      const porcelain = M(0xf5f0e8, {r:0.25});
+      box(bath, porcelain, 2.98, 0.24, 1.35, 0, 0.22, 0);
+      box(bath, M(0x9abfbe), 2.73, 0.14, 1.12, 0, 0.37, 0);
+      [-0.61, 0.61].forEach((z) => box(bath, porcelain, 2.98, 0.44, 0.14, 0, 0.46, z));
+      [-1.41, 1.41].forEach((x) => box(bath, porcelain, 0.16, 0.44, 1.22, x, 0.46, 0));
+      add(bath, new T.CylinderGeometry(0.055, 0.055, 0.25, 8), M(0x9ba6a7), 1.38, 0.79, 0);
+      box(bath, M(0x9ba6a7), 0.32, 0.065, 0.09, 1.25, 0.90, 0);
+    }
+    return occupied;
+  }
+
   /* --- Процедуралық low-poly модельдер (әр тип үшін) --- */
   const BUILD = {
     FRIDGE() {
@@ -570,8 +648,24 @@
     const ctl = { theta: 0.65, phi: 0.92, radius: 22, tx: 0, ty: 0, tz: 0 };
     const want = { ...ctl };
     let auto = false;
-    const fitRadius = () => clamp(Math.max(13, 8.4 / (Math.tan((21 * Math.PI) / 180) * camera.aspect)) + 2.5, 12, 44);
-    const resetView = () => { Object.assign(want, { theta: 0.65, phi: 0.92, radius: fitRadius(), tx: 0, ty: 0, tz: 0 }); };
+    const targetHeight = 0.65;
+    function fitRadius(theta = want.theta, phi = want.phi, aspect = camera.aspect) {
+      const field = Math.tan(camera.fov * Math.PI / 360);
+      let distance = 7;
+      // Keep every corner of the furnished floor inside the perspective frustum.
+      for (const x of [-HW - 0.3, HW + 0.3]) for (const z of [-HD - 0.3, HD + 0.3]) {
+        const along = x * Math.sin(theta) + z * Math.cos(theta);
+        const across = x * Math.cos(theta) - z * Math.sin(theta);
+        for (const y of [-0.32 - targetHeight, 3.0 - targetHeight]) {
+          const depth = along * Math.sin(phi) + y * Math.cos(phi);
+          const up = y * Math.sin(phi) - along * Math.cos(phi);
+          distance = Math.max(distance, depth + Math.abs(across) / (field * aspect * 0.90),
+            depth + Math.abs(up) / (field * 0.83));
+        }
+      }
+      return distance;
+    }
+    const resetView = () => { Object.assign(want, { theta: 0.65, phi: 0.92, radius: fitRadius(0.65, 0.92), tx: 0, ty: 0, tz: 0 }); };
 
     const accent = () => new T.Color(cssVar('--accent', '#3b82f6'));
     const accent2 = () => new T.Color(cssVar('--accent-2', '#22d3ee'));
@@ -586,12 +680,16 @@
       const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
       return {x0, x1, z0, z1, cx, cz, sx:Math.sign(cx), sz:Math.sign(cz) || -1};
     }
-    function slots(r) {
+    function slots(r, furnitureBounds) {
       const out = [];
       const nx = 4; const nz = 3 * (r.z1 - r.z0) / HD;
       for (let i = 0; i < nx; i++) {
         for (let j = 0; j < nz; j++) {
-          out.push({ x: r.x0 + 1.05 + (i * (r.x1 - r.x0 - 2.1)) / (nx - 1), z: r.z0 + 1.0 + (j * (r.z1 - r.z0 - 2.0)) / (nz - 1) });
+          const x = r.x0 + 1.05 + (i * (r.x1 - r.x0 - 2.1)) / (nx - 1);
+          const z = r.z0 + 1.0 + (j * (r.z1 - r.z0 - 2.0)) / (nz - 1);
+          if (!furnitureBounds.some((f) => Math.abs(x - f.x) < f.halfWidth + 0.55 && Math.abs(z - f.z) < f.halfDepth + 0.55)) {
+            out.push({x, z});
+          }
         }
       }
       // алдымен шеттегі орындар (бөлме ортасынан алыс), сосын ортаңғылары
@@ -599,7 +697,7 @@
     }
 
     /* --- Тұрақты орта --- */
-    function buildEnv(single) {
+    function buildEnv(layout) {
       env = new T.Group();
       scene.add(env);
       glow = glowTexture();
@@ -622,14 +720,16 @@
       // қабырғалар (сыртқы + ішкі, ортада дәліз)
       const wallMat = M(dark ? 0x5b6b9a : 0xe2e8f0, { r: 0.25, m: 0.1, t: true, o: dark ? 0.42 : 0.6 });
       const capMat = new T.MeshBasicMaterial({ color: accent(), transparent: true, opacity: 0.75 });
-      const wall = (x, z, w, d) => {
-        add(env, new T.BoxGeometry(w, WALL_H, d), wallMat, x, WALL_H / 2, z, false);
+      const wall = (x, z, w, d, name) => {
+        const mesh = add(env, new T.BoxGeometry(w, WALL_H, d), wallMat, x, WALL_H / 2, z, false);
+        mesh.name = name || 'wall';
         add(env, new T.BoxGeometry(w + 0.02, 0.035, d + 0.02), capMat, x, WALL_H + 0.02, z, false);
       };
       wall(0, -HD, HW * 2, 0.12); wall(0, HD, HW * 2, 0.12); wall(-HW, 0, 0.12, HD * 2); wall(HW, 0, 0.12, HD * 2);
-      wall(0, -(HD + GAP) / 2, 0.12, HD - GAP); wall(0, (HD + GAP) / 2, 0.12, HD - GAP);
+      if (layout !== 'studio') wall(0, -(HD + GAP) / 2, 0.12, HD - GAP, 'kitchen-living-partition');
+      wall(0, (HD + GAP) / 2, 0.12, HD - GAP);
       wall(-(HW + GAP) / 2, 0, HW - GAP, 0.12);
-      if (!single) wall((HW + GAP) / 2, 0, HW - GAP, 0.12);
+      if (layout === 'two') wall((HW + GAP) / 2, 0, HW - GAP, 0.12);
 
       // электр қалқаны (орталықта)
       const panel = new T.Group();
@@ -670,11 +770,13 @@
     function buildContent(st) {
       const dark = isDark();
       const FLOORS = [['tile', dark ? '#3a4566' : '#d5dae4'], ['wood', dark ? '#5e4633' : '#c8a27a'], ['wood', dark ? '#4f3f55' : '#d9b99b'], ['tile', dark ? '#2e4b64' : '#c4dceb']];
-      rooms = st.rooms.slice(0, 4).map((r, i) => {
-        const rect = roomRect(i, st.roomCount === 1);
-        const n = r.name.toLowerCase();
-        const kind = n.includes('ас үй') ? 0 : n.includes('қонақ') ? 1 : n.includes('жатын') ? 2 : n.includes('жуынатын') ? 3 : i;
-        const [tk, col] = FLOORS[kind];
+      const studio = st.layout === 'studio';
+      const kinds = st.layout === 'two' ? ['kitchen','living','bedroom','bath'] : ['kitchen','living','bath'];
+      const floorIndex = {kitchen:0, living:1, bedroom:2, bath:3};
+      const zoneRooms = studio ? [st.rooms[0], st.rooms[0], st.rooms[1]] : st.rooms;
+      rooms = zoneRooms.map((r, i) => {
+        const rect = roomRect(i, st.layout !== 'two'), kind = kinds[i];
+        const [tk, col] = FLOORS[studio && kind === 'kitchen' ? 1 : floorIndex[kind]];
         const tex = floorTexture(tk, col);
         tex.repeat.set((rect.x1 - rect.x0) / 2, (rect.z1 - rect.z0) / 2);
         const fm = new T.MeshStandardMaterial({ map: tex, roughness: 0.85, metalness: 0.05, emissive: 0x000000 });
@@ -686,17 +788,18 @@
         const label = labelSprite();
         label.position.set(rect.cx, 2.3, rect.sz < 0 ? rect.z0 + 0.45 : rect.z1 - 0.45);
         env.add(label);
-        return { id: r.id, rect, floor, fm, label, slots: slots(rect) };
+        const bounds = furniture(kind, rect, studio, env);
+        return { id: r.id, kind, rect, fm, label, slots: slots(rect, bounds) };
       });
 
       const byRoom = new Map(rooms.map((r) => [r.id, r]));
       const counters = new Map();
       apps = [];
       st.appliances.forEach((a) => {
-        const room = byRoom.get(a.roomId);
+        const room = studio && a.circuitPosition === 0 ? rooms[0] : byRoom.get(a.roomId);
         if (!room || !BUILD[a.type]) return;
-        const j = counters.get(room.id) || 0;
-        counters.set(room.id, j + 1);
+        const j = counters.get(room) || 0;
+        counters.set(room, j + 1);
         const slot = room.slots[j % room.slots.length];
         const extra = Math.floor(j / room.slots.length) * 0.35;
         const model = BUILD[a.type].call({ glow });
@@ -732,7 +835,7 @@
         ring.rotation.x = -Math.PI / 2;
         ring.position.set(g.position.x, 0.03, g.position.z);
         env.add(ring);
-        apps.push({ id: a.id, data: a, g, model, path, wireMat, sparks, halo, ring, ringMat, on: null, h: model.h });
+        apps.push({ id: a.id, data: a, room, g, model, path, wireMat, sparks, halo, ring, ringMat, on: null, h: model.h });
       });
     }
 
@@ -763,9 +866,16 @@
         const rs = st.rooms.find((x) => x.id === r.id);
         if (!rs) return;
         r.over = rs.overload;
-        const energy = window.Electro.fmtNum(rs.kwhDay, 2);
-        r.label.userData.draw(rs.name, `${rs.used}/${rs.sockets} розетка · ${fmt(rs.power)} Вт`, rs.overload,
-          `${energy} кВт·сағ/тәул.`);
+        if (st.layout === 'studio' && r.kind !== 'bath') {
+          const on = apps.filter((a) => a.room === r && a.on);
+          const watts = on.reduce((sum, a) => sum + a.data.power, 0);
+          const daily = on.reduce((sum, a) => sum + a.data.dailyKwh, 0);
+          r.label.userData.draw(r.kind === 'kitchen' ? 'Ас үй' : 'Қонақ бөлме',
+            `${on.length} құрал қосулы · ${fmt(watts)} Вт`, rs.overload, `${window.Electro.fmtNum(daily, 2)} кВт·сағ/тәул.`);
+        } else {
+          r.label.userData.draw(rs.name, `${rs.used}/${rs.sockets} розетка · ${fmt(rs.power)} Вт`, rs.overload,
+            `${window.Electro.fmtNum(rs.kwhDay, 2)} кВт·сағ/тәул.`);
+        }
         if (!rs.overload) { r.fm.emissive.copy(BLACK); r.fm.emissiveIntensity = 0; }
       });
       const u = env.userData;
@@ -777,12 +887,12 @@
       u.panelRing.material.color.copy(over ? RED : ac);
     }
 
-    const structSig = (st) => `${isDark()}|${cssVar('--accent', '')}|` + st.rooms.map((r) => `${r.id}:${r.name}`).join(',') + '|' + st.appliances.map((a) => `${a.id}:${a.roomId}:${a.type}`).join(',');
+    const structSig = (st) => `${st.layout}|${isDark()}|${cssVar('--accent', '')}|` + st.rooms.map((r) => `${r.id}:${r.name}`).join(',') + '|' + st.appliances.map((a) => `${a.id}:${a.roomId}:${a.circuitPosition}:${a.type}`).join(',');
     function rebuild(st) {
       if (env) { scene.remove(env); disposeObject(env); }
       if (glow) glow.dispose();
-      canvas.setAttribute('aria-label', `${st.roomCount || 2} бөлмелі 3D пәтер · құралды таңдау үшін басыңыз`);
-      buildEnv(st.roomCount === 1);
+      canvas.setAttribute('aria-label', `${window.Electro.layoutName(st.layout)} · 3D пәтер · құралды таңдау үшін басыңыз`);
+      buildEnv(st.layout);
       buildContent(st);
       sig = structSig(st);
       applyStates(st);
@@ -830,7 +940,7 @@
         moved += Math.abs(dx) + Math.abs(dy);
       } else if (pointers.size === 2) {
         const d = dist2();
-        if (pinch) want.radius = clamp(want.radius * (pinch / d), 7, 50);
+        if (pinch) want.radius = clamp(want.radius * (pinch / d), 7, Math.max(50, fitRadius()));
         pinch = d; moved += 10;
       }
     };
@@ -844,7 +954,7 @@
         select(id);
       }
     };
-    const onWheel = (e) => { e.preventDefault(); want.radius = clamp(want.radius * Math.exp(e.deltaY * 0.0012), 7, 50); };
+    const onWheel = (e) => { e.preventDefault(); want.radius = clamp(want.radius * Math.exp(e.deltaY * 0.0012), 7, Math.max(50, fitRadius())); };
     const onLeave = () => { tip.hidden = true; canvas.classList.remove('hovering'); hover.id = null; };
     const noMenu = (e) => e.preventDefault();
     canvas.addEventListener('pointerdown', onDown);
@@ -892,7 +1002,15 @@
     }
 
     /* --- Анимация циклы --- */
-    const stopObs = observeSize(container, renderer, camera);
+    let previousAspect = null;
+    const stopObs = observeSize(container, renderer, camera, () => {
+      if (previousAspect && camera.aspect !== previousAspect) {
+        const scale = fitRadius() / fitRadius(want.theta, want.phi, previousAspect);
+        want.radius *= scale;
+        ctl.radius *= scale;
+      }
+      previousAspect = camera.aspect;
+    });
     rebuild(state);
     resetView();
     Object.assign(ctl, want);
@@ -907,10 +1025,10 @@
       ['theta', 'phi', 'radius', 'tx', 'ty', 'tz'].forEach((key) => { ctl[key] += (want[key] - ctl[key]) * k; });
       camera.position.set(
         ctl.tx + ctl.radius * Math.sin(ctl.phi) * Math.sin(ctl.theta),
-        ctl.ty + ctl.radius * Math.cos(ctl.phi),
+        ctl.ty + targetHeight + ctl.radius * Math.cos(ctl.phi),
         ctl.tz + ctl.radius * Math.sin(ctl.phi) * Math.cos(ctl.theta),
       );
-      camera.lookAt(ctl.tx, ctl.ty + 0.3, ctl.tz);
+      camera.lookAt(ctl.tx, ctl.ty + targetHeight, ctl.tz);
 
       apps.forEach((e) => {
         if (e.model.tick) e.model.tick(t, dt, e.on);
@@ -947,7 +1065,7 @@
       update(st) { if (structSig(st) !== sig) rebuild(st); else applyStates(st); },
       select(id) { select(id); },
       resetView() { resetView(); },
-      topView() { Object.assign(want, { phi: 0.06, radius: fitRadius() * 1.05, tx: 0, tz: 0 }); },
+      topView() { Object.assign(want, { phi: 0.06, radius: fitRadius(want.theta, 0.06), tx: 0, tz: 0 }); },
       toggleAutoRotate() { auto = !auto; return auto; },
       dispose() {
         cancelAnimationFrame(raf);

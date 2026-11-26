@@ -429,7 +429,7 @@
         rf.reset(); $('#reg-strength').dataset.level = '0';
         $$('input', rf).forEach((i) => i.classList.remove('valid', 'invalid'));
         await enterApp(r.user);
-        toast('Тіркелу сәтті өтті!', 'Сізге 4 бөлмелі пәтер берілді. Каталогтан құрал қосыңыз.', 'success', 6000);
+        toast('Тіркелу сәтті өтті!', 'Пәтер жоспарын таңдап, каталогтан құрал қосыңыз.', 'success', 6000);
         location.hash = '#/apartment';
       } catch (err) { showFormError(box, err.message); } finally { btn.classList.remove('loading'); }
     });
@@ -504,7 +504,7 @@
     await pollNotifs(true);
     clearInterval(S.poll);
     S.poll = setInterval(() => pollNotifs(false), 15000);
-    if (user.role === 'ADMIN' && (!location.hash || location.hash === '#/dashboard')) history.replaceState(null, '', '#/map');
+    if (user.role === 'ADMIN' && ['', '#/dashboard', '#/three'].includes(location.hash)) history.replaceState(null, '', '#/map');
     route();
   }
 
@@ -1139,20 +1139,21 @@ ${heat ? `    @Override
     if (!host || S.user.role !== 'CLIENT') return;
     host.classList.add('layout-picker');
     host.innerHTML = `<strong>Пәтер түрі</strong><div class="seg" role="group" aria-label="Пәтер түрі">
-      <button type="button" data-room-count="1">1 бөлмелі</button>
-      <button type="button" data-room-count="2">2 бөлмелі</button></div>`;
+      <button type="button" data-layout="studio">Студия</button>
+      <button type="button" data-layout="one" data-room-count="1">1 бөлмелі</button>
+      <button type="button" data-layout="two" data-room-count="2">2 бөлмелі</button></div>`;
     const buttons = $$('button', host);
     const sync = () => buttons.forEach((b) => {
-      const selected = Number(b.dataset.roomCount) === S.state.roomCount;
+      const selected = b.dataset.layout === S.state.layout;
       b.setAttribute('aria-pressed', String(selected)); b.classList.toggle('active', selected);
     });
     host.onclick = async (event) => {
-      const button = event.target.closest('[data-room-count]');
+      const button = event.target.closest('[data-layout]');
       if (!button || button.disabled || button.getAttribute('aria-pressed') === 'true') return;
       const owner = S.user;
       buttons.forEach((b) => { b.disabled = true; });
       try {
-        const result = await api('apartment-layout', {roomCount:Number(button.dataset.roomCount)});
+        const result = await api('apartment-layout', {layout:button.dataset.layout});
         if (S.user?.id === owner.id && S.user.demo === owner.demo) applyResult(result);
       } catch (e) { if (host.isConnected) toast('Пәтер түрі сақталмады', e.message, 'error'); }
       finally { buttons.forEach((b) => { b.disabled = false; }); }
@@ -1261,7 +1262,7 @@ ${heat ? `    @Override
         card.append(m);
       });
     };
-    const signature = () => S.state.roomCount + '|' + S.state.appliances.map((a) => `${a.id}:${a.roomId}:${a.name}:${a.power}:${a.image}:${a.energyClass}:${a.hoursPerDay}:${a.extra}`).join('|');
+    const signature = () => S.state.layout + '|' + S.state.appliances.map((a) => `${a.id}:${a.roomId}:${a.name}:${a.power}:${a.image}:${a.energyClass}:${a.hoursPerDay}:${a.extra}`).join('|');
     let sig = signature();
     const patch = () => {
       if (filter !== 'all') return render();
@@ -1584,8 +1585,7 @@ ${heat ? `    @Override
     };
     const roomsList = () => {
       const roomGrid = $('[data-rooms]', root);
-      roomGrid.classList.toggle('g3', view.state.roomCount === 1);
-      roomGrid.classList.toggle('g4', view.state.roomCount !== 1);
+      roomGrid.className = 'grid g' + view.state.rooms.length;
       roomGrid.innerHTML = view.apt.rooms.map((r) => {
         const rs = view.state.rooms.find((x) => x.id === r.id);
         return `<div class="stack" style="gap:8px"><div class="row" style="gap:8px">${ic(roomIcon(r.name)).replace('<svg ', '<svg style="width:18px;height:18px;color:var(--accent)" ')}<b>${esc(r.name)}</b>${socketsHTML(r.usedSockets(), r.sockets)}</div>
@@ -1630,7 +1630,8 @@ ${heat ? `    @Override
       stage.append(fb);
       $$('.hud-controls, .hud-help', stage).forEach((n) => n.remove());
       const renderPlan = () => {
-        $('[data-plan]', fb).classList.toggle('one-room', view.state.roomCount === 1);
+        $('[data-plan]', fb).classList.toggle('one-room', view.state.layout === 'one');
+        $('[data-plan]', fb).classList.toggle('studio', view.state.layout === 'studio');
         $('[data-plan]', fb).innerHTML = view.apt.rooms.map((r) => `<div class="rm"><h4>${esc(r.name)} · ${fW(r.power(), 0)}</h4><div class="chips">${r.appliances.map((a) => `<button class="chip ${a.pluggedIn ? 'active' : ''}" data-sel2="${a.id}">${ic(a.pluggedIn ? 'plug' : 'power')}${esc(a.name)}</button>`).join('')}</div></div>`).join('');
         $$('[data-sel2]', fb).forEach((b) => b.addEventListener('click', () => showInfo(+b.dataset.sel2)));
       };
@@ -1673,8 +1674,8 @@ ${heat ? `    @Override
       <div class="hero-card" style="background-image:linear-gradient(110deg, color-mix(in srgb, var(--bg) 88%, transparent) 20%, color-mix(in srgb, var(--bg) 30%, transparent)), url('media/hero.jpg');background-size:cover;background-position:center">
         <p class="muted small">Медиа</p><h2>Электр құралдары: <span class="grad-text">видео мен суреттер</span></h2>
         <p>Барлық суреттер Wikimedia Commons-тан (ашық лицензиялар), видеолар Mixkit-тен алынды. Авторлары әр суреттің астында және <span class="mono">IMAGE_SOURCES.txt</span> файлында көрсетілген.</p></div>
-      <div class="card"><div class="card-head"><h3><span class="ic">${ic('bolt')}</span>Android қосымшасы</h3><a class="btn" href="media/electroui.apk?v=1.2" download="ElectroUi.apk">APK жүктеп алу</a></div>
-        <p class="muted small">Дәл осы тапсырманың Android нұсқасы (Java, SQLite, фрагменттер, бүйірлік мәзір, 3D пәтер). Android 8.0 және жоғары. Аккаунттар сайттағыдай: admin / Admin123!, aru / Aru12345!</p></div>
+      <div class="card"><div class="card-head"><h3><span class="ic">${ic('bolt')}</span>ЭлектроҮй Студия · Android</h3><a class="btn" href="media/electroui.apk?v=1.3" download="ElectroUi-Studio.apk">APK жүктеп алу</a></div>
+        <p class="muted small">Android 8.0 және одан кейінгі нұсқалар. Онлайн кабинетке осы сайттағы логинмен кіріңіз. Пәтердің жоспары мен құралдары екі құрылғыда да көрінеді.</p></div>
       <div class="card"><div class="card-head"><h3><span class="ic">${ic('video')}</span>Видеолар</h3></div><div class="video-grid" data-videos><div class="skeleton" style="height:220px"></div><div class="skeleton" style="height:220px"></div><div class="skeleton" style="height:220px"></div></div></div>
       <div class="card"><div class="card-head"><h3><span class="ic">${ic('image')}</span>Фотогалерея</h3><span class="muted small">Суретті басып үлкейтіңіз</span></div><div class="gallery" data-gallery></div></div>
       <div class="card"><div class="card-head"><h3><span class="ic">${ic('leaf')}</span>Энергия үнемдеу кеңестері</h3></div>

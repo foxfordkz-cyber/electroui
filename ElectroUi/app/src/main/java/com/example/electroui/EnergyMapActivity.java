@@ -32,8 +32,8 @@ import com.example.electroui.util.UiUtil;
 
 /** One server session and apartment model across Android and the website. */
 public class EnergyMapActivity extends BaseActivity {
-    private static final String HOST = "electroui.onrender.com";
-    private static final String MAP_URL = "https://" + HOST + "/#/map";
+    private static final String HOST = "electroui-studio.onrender.com";
+    private static final String APARTMENT_URL = "https://" + HOST + "/#/three";
     private WebView web;
     private View error;
     private ProgressBar progress;
@@ -85,7 +85,7 @@ public class EnergyMapActivity extends BaseActivity {
         error = findViewById(R.id.map_error);
         progress = findViewById(R.id.map_loading);
         findViewById(R.id.device_mode).setOnClickListener(v -> openDeviceMode());
-        findViewById(R.id.map_retry).setOnClickListener(v -> web.loadUrl(MAP_URL));
+        findViewById(R.id.map_retry).setOnClickListener(v -> web.loadUrl(APARTMENT_URL));
 
         WebSettings settings = web.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -160,7 +160,7 @@ public class EnergyMapActivity extends BaseActivity {
                 else finish();
             }
         });
-        if (state == null || web.restoreState(state) == null) web.loadUrl(MAP_URL);
+        if (state == null || web.restoreState(state) == null) web.loadUrl(APARTMENT_URL);
     }
 
     private void openDeviceMode() {
