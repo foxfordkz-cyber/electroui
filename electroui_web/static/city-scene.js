@@ -33,7 +33,7 @@
     return {type:'FeatureCollection',features};
   }
   function create(gl, container, center, zoom, onSelect) {
-    let items = [], selected = null;
+    let items = [], selected = null, deviceMarker = null;
     const source = 'apartment-cells', layer = 'apartment-columns';
     const map = new gl.Map({container, center:[center.lng,center.lat], zoom:zoom-1, pitch:53, bearing:-18,
       maxPitch:70, maxZoom:18, attributionControl:false, canvasContextAttributes:{antialias:true},
@@ -66,6 +66,13 @@
     return {
       update(next, id) { items=next; selected=id; map.getSource(source)?.setData(footprints(items,selected)); },
       reset(center, zoom) { map.resize(); map.jumpTo({center:[center.lng,center.lat],zoom:zoom-1}); },
+      locate(point) {
+        if (!deviceMarker) {
+          const dot = document.createElement('div');
+          dot.className = 'atlas-device-dot'; dot.setAttribute('role','img'); dot.setAttribute('aria-label','Менің орным');
+          deviceMarker = new gl.Marker({element:dot}).setLngLat([point.lng,point.lat]).addTo(map);
+        } else deviceMarker.setLngLat([point.lng,point.lat]);
+      },
       showAll(points) {
         if (!points.length) return;
         const bounds=new gl.LngLatBounds();

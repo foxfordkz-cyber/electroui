@@ -2,9 +2,11 @@
 import http.client
 import json
 import os
+import struct
 import tempfile
 import threading
 import unittest
+import zlib
 from pathlib import Path
 from unittest.mock import patch
 
@@ -36,6 +38,23 @@ class Session:
         return self.request('register', {'login': login, 'fullName': 'Test Resident',
                             'email': login + '@example.invalid', 'password': 'Test12345',
                             'confirm': 'Test12345'})['user']['id']
+
+    def file(self, version, data=None, mime='image/png', expected=200):
+        conn = http.client.HTTPConnection('127.0.0.1', self.port, timeout=5)
+        try:
+            conn.request('GET' if data is None else 'POST', '/api/apartment-file?v=' + version, data,
+                         {'Cookie': self.cookie, 'Content-Type': mime})
+            res = conn.getresponse()
+            body = res.read()
+            if res.status != expected:
+                raise AssertionError((res.status, body[:120]))
+            if res.getheader('Content-Type').startswith('application/json'):
+                return json.loads(body)
+            if 'no-store' not in res.getheader('Cache-Control', ''):
+                raise AssertionError('Personal attachment must not be cached')
+            return body
+        finally:
+            conn.close()
 
 
 class ApartmentMapTest(unittest.TestCase):
@@ -102,3 +121,38 @@ class ApartmentMapTest(unittest.TestCase):
         second_uid = demo.register('fromdemo')
         self.assertEqual([second_uid], [i['id'] for i in demo.request('apartments')['items']])
         self.assertEqual(2, len(staff.request('apartments')['items']))
+
+    def test_private_file_replacement_and_scope(self):
+        owner, neighbor, staff, shared = (Session(self.port) for _ in range(4))
+        owner.file('new', expected=401)
+        owner.register('myflat')
+        neighbor.register('otherflat')
+        staff.request('login', {'login': server.SECTOR_LOGIN, 'password': 'PrivateTest123'})
+        shared.request('login', {'login': 'aru', 'password': 'Aru12345!'})
+        self.assertIsNone(owner.request('apartment-file-info')['file'])
+
+        def chunk(tag, raw):
+            return struct.pack('>I', len(raw)) + tag + raw + struct.pack('>I', zlib.crc32(tag + raw))
+        header = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 1, 1, 8, 6, 0, 0, 0))
+        pixels = chunk(b'IDAT', zlib.compress(bytes([0, 10, 20, 30, 255]))) + chunk(b'IEND', b'')
+        uploaded = owner.file('new', header + chunk(b'tEXt', b'Description\0private metadata') + pixels)['file']
+        v = uploaded['version']
+        self.assertEqual(header + pixels, owner.file(v))
+        self.assertIsNone(neighbor.request('apartment-file-info')['file'])
+        neighbor.file(v, expected=404)
+        for other in (staff, shared):
+            other.file(v, expected=403)
+            other.request('apartment-file-info', expected=403)
+            other.file('new', header + pixels, expected=403)
+        owner.file(v, b'not a picture', expected=415)
+        owner.file(v, b'other', 'text/plain', expected=415)
+        owner.file('new', header + pixels, expected=409)
+        self.assertEqual(v, owner.request('apartment-file-info')['file']['version'])
+        plan = b'%PDF-1.7\n1 0 obj\n<<>>\nendobj\n%%EOF\n'
+        replaced = owner.file(v, plan, 'application/pdf')['file']
+        self.assertEqual(replaced['mime'], 'application/pdf')
+        owner.request('apartment-file-remove', {'version': v}, 409)
+        owner.file(v, expected=404)
+        self.assertEqual(plan, owner.file(replaced['version']))
+        owner.request('apartment-file-remove', {'version': replaced['version']})
+        owner.file(replaced['version'], expected=404)

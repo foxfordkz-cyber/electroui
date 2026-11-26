@@ -21,6 +21,32 @@
 .atlas-head h2 svg, .atlas-editor h3 svg, .atlas-open svg { width: 19px; height: 19px; color: var(--accent); }
 .atlas-head small { font-size: 14px; color: var(--muted); }
 .atlas-map { height: clamp(340px, 50vh, 570px); width: 100%; position: relative; isolation: isolate; background: #d7e2df; }
+.atlas-viewport { position: relative; }
+.atlas-locate {
+  position: absolute; top: 12px; right: 12px; z-index: 2; display: flex; align-items: center; gap: 6px;
+  min-height: 44px; padding: 0 12px; border: 1px solid #bdccd8; border-radius: 10px;
+  background: #fff; color: #1751ae; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 2px 8px #13264130;
+}
+.atlas-locate svg { width: 20px; height: 20px; }
+.atlas-locate:focus-visible { outline: 3px solid #215bd0; outline-offset: 2px; }
+.atlas-locate[aria-busy="true"] { color: #546379; cursor: wait; }
+.atlas-device-dot {
+  display: block; box-sizing: border-box; width: 18px; height: 18px; border: 3px solid white;
+  border-radius: 50%; background: #2368e5; box-shadow: 0 0 0 6px #3677e440, 0 1px 5px #1d396f77;
+  pointer-events: none;
+}
+.atlas-location-note { margin: 0; padding: 0 18px 12px; font-size: 13px; color: var(--text-2); }
+.apartment-file { min-width: 0; display: grid; gap: 10px; }
+.apartment-file h3 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 16px; }
+.apartment-file h3 svg { width: 19px; height: 19px; color: var(--accent); flex: none; }
+.apartment-file p { margin: 0; }
+.apartment-file .row { flex-wrap: wrap; }
+.atlas-directory .apartment-file { margin: 0 14px 16px; padding: 14px; }
+.flat-photo, .flat-pdf canvas { display: block; max-width: 100%; max-height: 70vh; object-fit: contain; margin: 0 auto; }
+.flat-photo { border-radius: 7px; }
+.flat-pdf .row { justify-content: center; margin-top: 8px; }
+.flat-file-status:empty, .apartment-file [hidden], .atlas-location-note[hidden] { display: none; }
 .atlas-map.atlas-picking, .atlas-map.atlas-picking .leaflet-interactive { cursor: crosshair; }
 .atlas-map .leaflet-control a { color: #174948; }
 .atlas-map .leaflet-control-attribution { background: rgba(255,255,255,.92); color: #253333; }

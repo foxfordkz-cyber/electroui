@@ -6,3 +6,8 @@ gradlew text eol=lf
 *.jpg binary
 *.png binary
 *.mp4 binary
+*.bcmap binary
+*.wasm binary
+*.pfb binary
+*.ttf binary
+*.icc binary

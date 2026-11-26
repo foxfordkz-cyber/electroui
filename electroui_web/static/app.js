@@ -112,6 +112,7 @@
     maximize: '<path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>',
     orbit: '<path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 21v-5h5M21 3v5h-5"/>',
     image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>',
+    locate: '<path fill="currentColor" stroke-linejoin="round" d="m20 3-6 18-3-8-8-3z"/>',
     video: '<path d="m22 8-6 4 6 4z"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
     lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
     unlock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',
@@ -272,7 +273,8 @@
 
   async function api(path, body) {
     const opt = { method: body === undefined ? 'GET' : 'POST', headers: {}, credentials: 'same-origin' };
-    if (body !== undefined) { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
+    if (body instanceof Blob) { opt.headers['Content-Type'] = body.type; opt.body = body; }
+    else if (body !== undefined) { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
     let res;
     try { res = await fetch('/api/' + path, opt); } catch (e) {
       throw Object.assign(new Error('Серверге қосылу мүмкін болмады. server.py іске қосулы ма?'), { status: 0 });
@@ -1144,7 +1146,9 @@ ${heat ? `    @Override
         </div>
         <div class="row"><button class="btn" data-unplug>${ic('power')}Барлығын өшіру</button><button class="btn btn-primary" data-add>${ic('plus')}Құрал қосу</button></div>
       </div></div>
+      <div data-file-card${S.user.role === 'CLIENT' ? '' : ' hidden'}></div>
       <div data-rooms class="stack" style="gap:26px"></div>`;
+    const fileCard = S.user.role === 'CLIENT' && ApartmentFile.mount($('[data-file-card]', root), S.user, api, ic);
     $$('[data-f]', root).forEach((b) => b.addEventListener('click', () => {
       filter = b.dataset.f; store.set('aptFilter', filter);
       $$('[data-f]', root).forEach((x) => x.classList.toggle('active', x === b)); render();
@@ -1240,7 +1244,8 @@ ${heat ? `    @Override
       });
     };
     render();
-    return { onState() { const s = signature(); if (s !== sig) { sig = s; render(); } else patch(); } };
+    return { onState() { const s = signature(); if (s !== sig) { sig = s; render(); } else patch(); },
+      destroy() { if (fileCard) fileCard.destroy(); } };
   }
 
   /* ======================= БЕТ: ҚУАТТЫ ЕСЕПТЕУ (3-қадам) ======================= */
@@ -1627,7 +1632,7 @@ ${heat ? `    @Override
       <div class="hero-card" style="background-image:linear-gradient(110deg, color-mix(in srgb, var(--bg) 88%, transparent) 20%, color-mix(in srgb, var(--bg) 30%, transparent)), url('media/hero.jpg');background-size:cover;background-position:center">
         <p class="muted small">Медиа</p><h2>Электр құралдары: <span class="grad-text">видео мен суреттер</span></h2>
         <p>Барлық суреттер Wikimedia Commons-тан (ашық лицензиялар), видеолар Mixkit-тен алынды. Авторлары әр суреттің астында және <span class="mono">IMAGE_SOURCES.txt</span> файлында көрсетілген.</p></div>
-      <div class="card"><div class="card-head"><h3><span class="ic">${ic('bolt')}</span>Android қосымшасы</h3><a class="btn" href="media/electroui.apk" download="ElectroUi.apk">APK жүктеп алу</a></div>
+      <div class="card"><div class="card-head"><h3><span class="ic">${ic('bolt')}</span>Android қосымшасы</h3><a class="btn" href="media/electroui.apk?v=1.2" download="ElectroUi.apk">APK жүктеп алу</a></div>
         <p class="muted small">Дәл осы тапсырманың Android нұсқасы (Java, SQLite, фрагменттер, бүйірлік мәзір, 3D пәтер). Android 8.0 және жоғары. Аккаунттар сайттағыдай: admin / Admin123!, aru / Aru12345!</p></div>
       <div class="card"><div class="card-head"><h3><span class="ic">${ic('video')}</span>Видеолар</h3></div><div class="video-grid" data-videos><div class="skeleton" style="height:220px"></div><div class="skeleton" style="height:220px"></div><div class="skeleton" style="height:220px"></div></div></div>
       <div class="card"><div class="card-head"><h3><span class="ic">${ic('image')}</span>Фотогалерея</h3><span class="muted small">Суретті басып үлкейтіңіз</span></div><div class="gallery" data-gallery></div></div>

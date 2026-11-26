@@ -37,6 +37,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
+import apartment_files
+
 ROOT = Path(__file__).resolve().parent
 DB = Path(os.environ.get('ELECTROUI_DB') or ROOT / 'electroui.db')
 STATIC = ROOT / 'static'
@@ -63,6 +65,7 @@ EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$')
 
 TYPES = {
     '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+    '.mjs': 'text/javascript; charset=utf-8', '.wasm': 'application/wasm',
     '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8',
     '.txt': 'text/plain; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png',
     '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon',
@@ -452,6 +455,12 @@ CREATE TABLE IF NOT EXISTS apartment_locations (
     user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     lat_cell INTEGER NOT NULL CHECK (lat_cell BETWEEN -8500 AND 8500),
     lon_cell INTEGER NOT NULL CHECK (lon_cell BETWEEN -18000 AND 18000)
+);
+CREATE TABLE IF NOT EXISTS apartment_files (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    version TEXT NOT NULL,
+    mime TEXT NOT NULL CHECK (mime IN ('image/png','application/pdf')),
+    content BLOB NOT NULL
 );
 CREATE TABLE IF NOT EXISTS sessions (
     token_hash TEXT    PRIMARY KEY,
@@ -1008,6 +1017,28 @@ def get_apartment_view(c, user, q):
     return apartment_state(c, uid)
 
 
+def require_file_owner(user):
+    require(user is not None, 'Жүйеге кіріңіз.', 401)
+    require(user['role'] == 'CLIENT' and user['login'].lower() not in DEMO_LOGINS,
+            'Файлды тек жеке пәтердің иесі қарай алады.', 403)
+
+
+def get_file_info(c, user, q):
+    require_file_owner(user)
+    require(not q, 'Жеке пәтердің файлын ашыңыз.')
+    return {'file': one(c, 'SELECT version, mime, length(content) AS size FROM apartment_files WHERE user_id=?',
+                        (user['id'],))}
+
+
+def remove_file(c, user, data):
+    require_file_owner(user)
+    require(set(data) == {'version'} and isinstance(data['version'], str), 'Файл нұсқасын таңдаңыз.')
+    removed = c.execute('DELETE FROM apartment_files WHERE user_id=? AND version=?',
+                        (user['id'], data['version'])).rowcount
+    require(removed, 'Файл өзгерді. Карточканы жаңартыңыз.', 409)
+    return {'file': None}
+
+
 def set_apartment_location(c, user, data):
     require(user['role'] == 'CLIENT', 'Орынды пәтер иесі таңдайды.', 403)
     if data == {'remove': True}:
@@ -1476,6 +1507,7 @@ def get_admin_stats(c, user, q):
 
 GET_ACTIONS = {
     'apartments': (get_apartments, 'user'), 'apartment-view': (get_apartment_view, 'user'),
+    'apartment-file-info': (get_file_info, 'user'),
     'me': (get_me, 'public'), 'meta': (get_meta, 'public'),
     'state': (get_state, 'user'), 'catalog': (get_catalog, 'user'), 'sort': (get_sort, 'user'),
     'search': (get_search, 'user'), 'notifications': (get_notifications, 'user'),
@@ -1485,6 +1517,7 @@ GET_ACTIONS = {
 }
 POST_ACTIONS = {
     'apartment-location': (set_apartment_location, 'user'),
+    'apartment-file-remove': (remove_file, 'user'),
     'register': (do_register, 'public'), 'login': (do_login, 'public'),
     'appliance_add': (do_appliance_add, 'user'), 'appliance_update': (do_appliance_update, 'user'),
     'appliance_delete': (do_appliance_delete, 'user'), 'plug': (do_plug, 'user'),
@@ -1598,6 +1631,59 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         self.route('POST')
 
+    def apartment_file(self, method, url):
+        token = self.token()
+        if method == 'POST':
+            self.close_connection = True
+        query = parse_qs(url.query, keep_blank_values=True)
+        with db(bool(token and token.startswith('demo.'))) as c:
+            user = self.session_user(c, token)
+            require_file_owner(user)
+            require(set(query) == {'v'} and len(query['v']) == 1, 'Файл нұсқасын таңдаңыз.')
+            version = query['v'][0]
+            if method == 'GET':
+                record = one(c, 'SELECT mime, content FROM apartment_files WHERE user_id=? AND version=?',
+                             (user['id'], version))
+        if method == 'GET':
+            require(record is not None, 'Файл табылмады.', 404)
+            content, mime = record['content'], record['mime']
+            self.send_response(200)
+            self.send_header('Content-Type', mime)
+            self.send_header('Content-Length', str(len(content)))
+            self.send_header('Cache-Control', 'private, no-store')
+            self.send_header('X-Content-Type-Options', 'nosniff')
+            self.send_header('Cross-Origin-Resource-Policy', 'same-origin')
+            self.send_header('Content-Security-Policy', "sandbox; default-src 'none'")
+            if mime == 'application/pdf':
+                self.send_header('Content-Disposition', 'attachment; filename="apartment-plan.pdf"')
+            self.end_headers()
+            if self.command != 'HEAD':
+                self.wfile.write(content)
+            return
+        mime = self.headers.get_content_type()
+        require(mime in ('image/png', 'application/pdf'), 'Фотоны немесе PDF жоспарын таңдаңыз.', 415)
+        length = self.headers.get('Content-Length', '')
+        require(re.fullmatch(r'[0-9]{1,10}', length) and int(length) > 0, 'Бос файлды жүктеу мүмкін емес.')
+        length = int(length)
+        require(length <= apartment_files.MAX_BYTES, 'Файл 8 МБ-тан аспауы керек.', 413)
+        raw = self.rfile.read(length)
+        require(len(raw) == length, 'Файл толық жүктелмеді.')
+        try:
+            content = apartment_files.normalize(mime, raw)
+        except ValueError:
+            raise Fail('Файл ашылмады. Басқа суретті немесе PDF жоспарын таңдаңыз.', 415)
+        # Recheck the session after receiving the file. A failed or stale upload leaves the old file intact.
+        with LOCK, db() as c:
+            user = self.session_user(c, token)
+            require_file_owner(user)
+            current = value(c, 'SELECT version FROM apartment_files WHERE user_id=?', (user['id'],))
+            require(version == (current or 'new'), 'Файл өзгерді. Карточканы жаңартыңыз.', 409)
+            new_version = secrets.token_hex(12)
+            c.execute('INSERT INTO apartment_files(user_id,version,mime,content) VALUES (?,?,?,?) '
+                      'ON CONFLICT(user_id) DO UPDATE SET version=excluded.version, mime=excluded.mime, content=excluded.content',
+                      (user['id'], new_version, mime, content))
+        self.send_json(200, {'ok': True, 'file': {'version': new_version, 'mime': mime, 'size': len(content)}})
+
     def route(self, method):
         url = urlparse(self.path)
         path = url.path
@@ -1623,6 +1709,8 @@ class Handler(BaseHTTPRequestHandler):
         login = '-'
         code = 200
         try:
+            if name == 'apartment-file':
+                return self.apartment_file(method, url)
             data = {}
             if method == 'POST':
                 length = int(self.headers.get('Content-Length') or 0)

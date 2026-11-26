@@ -12,6 +12,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.CookieManager;
 import android.webkit.GeolocationPermissions;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -38,9 +39,29 @@ public class EnergyMapActivity extends BaseActivity {
     private ProgressBar progress;
     private String pendingOrigin;
     private GeolocationPermissions.Callback pendingLocation;
+    private ValueCallback<Uri[]> pendingFile;
+    private boolean pickerOpen;
+    private static final String[] FILE_TYPES = {"image/jpeg", "image/png", "image/webp", "application/pdf"};
 
     private final ActivityResultLauncher<String> permission = registerForActivityResult(
             new ActivityResultContracts.RequestPermission(), this::answerLocation);
+    private final ActivityResultLauncher<String[]> filePicker = registerForActivityResult(
+            new ActivityResultContracts.OpenDocument(), uri -> {
+                pickerOpen = false;
+                boolean valid = uri != null && "content".equals(uri.getScheme()) && uri.getAuthority() != null
+                        && !uri.getAuthority().startsWith(getPackageName()) && onTrustedPage();
+                completeFile(valid ? uri : null);
+            });
+
+    private boolean onTrustedPage() {
+        return web != null && web.getUrl() != null && trusted(Uri.parse(web.getUrl()));
+    }
+
+    private void completeFile(Uri uri) {
+        ValueCallback<Uri[]> callback = pendingFile;
+        pendingFile = null;
+        if (callback != null) callback.onReceiveValue(uri == null ? null : new Uri[]{uri});
+    }
 
     private static boolean trusted(Uri uri) {
         return uri != null && "https".equalsIgnoreCase(uri.getScheme()) && HOST.equalsIgnoreCase(uri.getHost())
@@ -49,8 +70,7 @@ public class EnergyMapActivity extends BaseActivity {
 
     private void answerLocation(boolean granted) {
         if (pendingLocation == null) return;
-        boolean stillOnSite = web != null && web.getUrl() != null && trusted(Uri.parse(web.getUrl()));
-        pendingLocation.invoke(pendingOrigin, granted && stillOnSite, false);
+        pendingLocation.invoke(pendingOrigin, granted && onTrustedPage(), false);
         pendingLocation = null;
         pendingOrigin = null;
     }
@@ -88,6 +108,7 @@ public class EnergyMapActivity extends BaseActivity {
 
             @Override public void onPageStarted(WebView view, String url, Bitmap icon) {
                 answerLocation(false);
+                completeFile(null);
                 error.setVisibility(View.GONE);
                 progress.setVisibility(View.VISIBLE);
             }
@@ -101,6 +122,18 @@ public class EnergyMapActivity extends BaseActivity {
             }
         });
         web.setWebChromeClient(new WebChromeClient() {
+            @Override public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
+                if (!onTrustedPage() || pickerOpen || params.getMode() != FileChooserParams.MODE_OPEN) {
+                    callback.onReceiveValue(null);
+                    return true;
+                }
+                pendingFile = callback;
+                pickerOpen = true;
+                try { filePicker.launch(FILE_TYPES); }
+                catch (ActivityNotFoundException e) { pickerOpen = false; completeFile(null); }
+                return true;
+            }
+
             @Override public void onProgressChanged(WebView view, int value) {
                 progress.setProgress(value);
                 progress.setVisibility(value == 100 ? View.GONE : View.VISIBLE);
@@ -155,6 +188,7 @@ public class EnergyMapActivity extends BaseActivity {
 
     @Override protected void onDestroy() {
         answerLocation(false);
+        completeFile(null);
         if (web != null) {
             web.stopLoading();
             web.setWebChromeClient(null);

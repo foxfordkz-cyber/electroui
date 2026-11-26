@@ -16,10 +16,15 @@
             <div class="row"><button class="btn btn-sm" data-mode aria-pressed="false">3D карта</button><button class="btn btn-sm" data-city>Астана</button>
             ${operator ? '<button class="btn btn-sm" data-fit>Барлық белгі</button>' : ''}</div>
           </header>
-          <div class="atlas-map" data-map aria-label="Астана қаласындағы пәтерлер картасы"></div>
-          <div class="atlas-map" data-city-scene aria-label="Пәтер қуатының үш өлшемді картасы" hidden></div>
+          <div class="atlas-viewport">
+            <div class="atlas-map" data-map aria-label="Астана қаласындағы пәтерлер картасы"></div>
+            <div class="atlas-map" data-city-scene aria-label="Пәтер қуатының үш өлшемді картасы" hidden></div>
+            ${operator ? '' : `<button type="button" class="atlas-locate" data-gps aria-label="Менің орнымды көрсету (GPS)" title="Менің орнымды көрсету">
+              ${ic('locate')} GPS</button>`}
+          </div>
           <p class="atlas-tile-error" data-tile-error role="status" hidden>Карта қабаты жүктелмеді. Пәтерді тізімнен таңдап, 3D үлгісін аша аласыз.</p>
           <div class="atlas-legend"><span class="atlas-dot"></span><span data-legend>Пәтердің шамамен орналасқан жері</span></div>
+          ${operator ? '' : '<p class="atlas-location-note" data-gps-status role="status" hidden></p>'}
           ${operator ? '<p class="atlas-overview" data-overview></p>' : ''}
         </section>
         <section class="atlas-surface atlas-directory">
@@ -27,14 +32,14 @@
             <button class="icon-btn" data-refresh title="Деректерді жаңарту" aria-label="Деректерді жаңарту">${ic('reset')}</button></header>
           <p class="atlas-caption">${operator ? (user.demo ? 'Демо кабинетте ойдан алынған пәтерлер көрсетілген.' : 'Орны көрсетілмеген пәтерлер де тізімге кіреді.') : 'Құралдар мен бөлмелер бойынша тұтынуды 3D үлгіде көріңіз.'}</p>
           <div class="atlas-list" data-list aria-live="polite"></div>
+          ${operator ? '' : '<div data-file-card></div>'}
         </section>
       </div>
       ${operator ? '' : `<section class="card atlas-editor">
         <h3>${ic('building')} Пәтерді картаға белгілеу</h3>
-        <p class="small muted">${user.demo ? 'Ортақ демода Астананың үлгі орындары қолданылады. GPS пен өз пәтеріңіз үшін жеке аккаунтқа кіріңіз.' : 'Сақтасаңыз, өзіңіз бен сектор әкімшісі шамамен 1 км аумақты көресіздер. Нақты мекенжай сұралмайды. Белгіні кейін өшіре аласыз.'}</p>
+        <p class="small muted">${user.demo ? 'GPS арқылы өз орныңызды көре аласыз. Ортақ демода пәтерге тек үлгі орындар сақталады.' : 'Картадағы GPS көрсеткісін басыңыз немесе орынды қолмен таңдаңыз. Сақтағаннан кейін өзіңіз бен сектор әкімшісі шамамен 1 км аумақты көресіздер.'}</p>
         <div class="row">${user.demo ? `<label class="atlas-example">Үлгі орын <select data-example><option value="">Таңдаңыз</option>${EXAMPLES.map(([label], i) => `<option value="${i}">${label}</option>`).join('')}</select></label>` :
-          `<button class="btn btn-primary" data-gps>${ic('orbit')} GPS арқылы табу</button>
-           <button class="btn" data-pick>Картадан таңдау</button>`}
+          `<button class="btn" data-pick>Картадан таңдау</button>`}
           <button class="btn btn-sm" data-remove hidden>Белгіні өшіру</button></div>
         <div class="atlas-preview-actions row" data-actions hidden>
           <button class="btn" data-center hidden>Карта ортасын таңдау</button>
@@ -51,13 +56,15 @@
     const mapNode = find('[data-map]'), detail = find('[data-detail]');
     if (!operator) {
       const editor = find('.atlas-editor');
-      mapNode.parentElement.append(editor);
+      mapNode.closest('.atlas-surface').append(editor);
       editor.append(find('[data-msg]'));
     }
     let alive = true, map = null, markers = null, preview = null, scene = null;
     let city = null, in3d = false, modeVersion = 0;
     let items = [], selected = null, candidate = null, picking = false, busy = false;
     let geoVersion = 0, detailVersion = 0, listVersion = 0;
+    let devicePoint = null, deviceMarker = null;
+    const fileCard = !operator && ApartmentFile.mount(find('[data-file-card]'), user, api, ic);
     function message(text) { find('[data-msg]').textContent = text; }
 
     if (window.L) {
@@ -157,7 +164,7 @@
         if (!alive || revision !== listVersion) return;
         items = result.items; drawList();
         const own = items.find((i) => i.id === user.id);
-        if (initial && own?.point && !operator && map) map.setView(own.point, 13);
+        if (initial && own?.point && !operator && map && geoVersion === 0) map.setView(own.point, 13);
         if (initial && operator && items.some((i) => i.point)) showAll();
         if (selected !== null) {
           const current = items.find((i) => i.id === selected);
@@ -182,11 +189,12 @@
       try {
         const gl = await EnergyCityScene.loadLibrary();
         if (!alive || version !== modeVersion) return;
-        if (!operator) clearDraft();
+        if (picking) clearDraft();
         const center = map.getCenter(), zoom = map.getZoom(), host = find('[data-city-scene]');
         mapNode.hidden = true; host.hidden = false;
         if (!city) city = EnergyCityScene.create(gl, host, center, zoom, (item) => inspect(item, true));
         city.reset(center, zoom); city.update(items, selected);
+        if (devicePoint) city.locate(devicePoint);
         in3d = true; button.setAttribute('aria-pressed', 'true'); button.textContent = '2D карта';
         find('[data-legend]').textContent = 'Баған биіктігі қосулы қуатты көрсетеді. Пәтерді ашу үшін бағанды басыңыз.';
       } catch (e) { if (alive) { flatMap(); message('Бұл құрылғыда 3D карта ашылмады. Пәтерді 2D картадан таңдаңыз.'); } }
@@ -204,20 +212,22 @@
     if (operator) find('[data-fit]').onclick = showAll;
     function clearDraft() {
       geoVersion++; picking = false; candidate = null;
+      const gps = find('[data-gps]');
+      if (gps) { gps.disabled = busy || !map; gps.removeAttribute('aria-busy'); }
       mapNode.classList.remove('atlas-picking');
       if (preview) { preview.remove(); preview = null; }
       find('[data-actions]').hidden = true;
       if (user.demo) find('[data-example]').value = '';
     }
-    function choose(lat, lon) {
+    function choose(lat, lon, fromGps = false) {
       if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 85) { message('Бұл орынды картада көрсету мүмкін емес.'); return; }
       clearDraft();
-      flatMap();
+      if (!fromGps) flatMap();
       const latCell = Math.round(lat * 100), lonCell = Math.round((((lon + 180) % 360 + 360) % 360 - 180) * 100);
       candidate = {latCell, lonCell};
       const y = latCell / 100, x = lonCell / 100;
       if (map) {
-        map.setView([y,x], 14);
+        map.setView(fromGps ? [lat,lon] : [y,x], 14);
         preview = L.rectangle([[y-.005,x-.005],[y+.005,x+.005]], {color:'#097f78', weight:3, fillOpacity:.2, interactive:false}).addTo(map);
       }
       find('[data-actions]').hidden = false; find('[data-center]').hidden = true; find('[data-save]').hidden = false;
@@ -226,7 +236,7 @@
     async function save(data) {
       if (busy) return;
       busy = true;
-      const controls = root.querySelectorAll('.atlas-editor button, .atlas-editor select');
+      const controls = root.querySelectorAll('.atlas-editor button, .atlas-editor select, [data-gps]');
       controls.forEach((b) => { b.disabled = true; });
       try {
         const result = await api('apartment-location', data);
@@ -237,6 +247,48 @@
       finally { busy = false; controls.forEach((b) => { b.disabled = false; }); }
     }
     if (!operator) {
+      const gps = find('[data-gps]'), note = find('[data-gps-status]');
+      const gpsStatus = (text) => { note.textContent = text; note.hidden = !text; };
+      gps.disabled = !map;
+      gps.onclick = () => {
+        clearDraft();
+        message('');
+        if (!navigator.geolocation || !window.isSecureContext) {
+          gpsStatus('GPS қолжетімсіз. HTTPS арқылы кіріңіз немесе пәтер орнын картадан таңдаңыз.');
+          return;
+        }
+        const revision = geoVersion;
+        gps.disabled = true; gps.setAttribute('aria-busy', 'true');
+        gpsStatus('Құрылғыңыздың орны анықталуда…');
+        const ready = () => {
+          if (!alive || revision !== geoVersion) return false;
+          gps.disabled = false; gps.removeAttribute('aria-busy');
+          return true;
+        };
+        navigator.geolocation.getCurrentPosition(({coords}) => {
+          if (!ready()) return;
+          const {latitude: lat, longitude: lon} = coords;
+          if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 85 || Math.abs(lon) > 180) {
+            gpsStatus('Бұл орынды картада көрсету мүмкін емес.'); return;
+          }
+          devicePoint = L.latLng(lat, lon);
+          if (!user.demo) choose(lat, lon, true);
+          else map.setView(devicePoint, 14);
+          if (!deviceMarker) {
+            const icon = L.divIcon({className:'atlas-device-dot', iconSize:[18,18], iconAnchor:[9,9]});
+            deviceMarker = L.marker(devicePoint, {icon, pane:'tooltipPane', interactive:false,
+              keyboard:false, alt:'Менің орным'}).addTo(map);
+          } else deviceMarker.setLatLng(devicePoint);
+          if (city) city.locate(devicePoint);
+          if (in3d) city.reset(devicePoint, 14);
+          gpsStatus(user.demo ? 'Көк нүкте сіз тұрған орынды көрсетеді. Оны осы құрылғыда ғана көресіз.'
+            : 'Көк нүкте сіз тұрған орынды көрсетеді. Бұл жерде тұрсаңыз, пәтердің шамамен орнын төменде сақтай аласыз.');
+        }, (err) => {
+          if (!ready()) return;
+          gpsStatus(err.code === 1 ? 'GPS рұқсаты берілмеді. Құрылғы баптауларынан рұқсат беріңіз немесе орынды қолмен таңдаңыз.'
+            : 'Орныңыз анықталмады. GPS-ті тексеріп, қайталаңыз немесе орынды қолмен таңдаңыз.');
+        }, {enableHighAccuracy:false, timeout:15000, maximumAge:0});
+      };
       find('[data-save]').onclick = () => { if (candidate) save(candidate); };
       find('[data-cancel]').onclick = () => { clearDraft(); message('Орынды таңдау тоқтатылды.'); };
       find('[data-remove]').onclick = () => { if (window.confirm('Пәтер белгісін картадан өшіресіз бе?')) save({remove:true}); };
@@ -248,17 +300,8 @@
           event.target.value = index;
         };
       } else {
-        find('[data-gps]').onclick = () => {
-          clearDraft();
-          if (!navigator.geolocation || !window.isSecureContext) { message('GPS қолжетімсіз. Орынды картадан таңдаңыз.'); return; }
-          const revision = geoVersion; message('Браузерден орналасқан жерді анықтауға рұқсат күтілуде…');
-          navigator.geolocation.getCurrentPosition(({coords}) => {
-            if (alive && revision === geoVersion) choose(coords.latitude, coords.longitude);
-          }, (err) => {
-            if (alive && revision === geoVersion) message(err.code === 1 ? 'GPS рұқсаты берілмеді. «Картадан таңдау» арқылы жалғастырыңыз.' : 'Орныңыз анықталмады. Қайталап көріңіз немесе картадан таңдаңыз.');
-          }, {enableHighAccuracy:false, timeout:12000, maximumAge:60000});
-        };
         find('[data-pick]').onclick = () => {
+          gpsStatus('');
           flatMap();
           clearDraft(); if (!map) { message('Карта қолжетімсіз. GPS арқылы орынды таңдаңыз.'); return; }
           picking = true; mapNode.classList.add('atlas-picking');
@@ -277,7 +320,7 @@
         const mine = items.find((i) => i.id === user.id);
         if (mine) { const totals = ownState().totals; mine.power = totals.power; mine.kwhDay = totals.kwhDay; drawList(); }
       },
-      destroy() { alive = false; closeScene(); city?.destroy(); if (map) map.remove(); },
+      destroy() { alive = false; if (fileCard) fileCard.destroy(); closeScene(); city?.destroy(); if (map) map.remove(); },
     };
   }
   window.ApartmentAtlas = {open};
